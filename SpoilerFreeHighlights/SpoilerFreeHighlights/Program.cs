@@ -1,3 +1,4 @@
+using MudBlazor.Services;
 using SpoilerFreeHighlights.Components;
 using SpoilerFreeHighlights.Shared.Models;
 using System;
@@ -17,6 +18,8 @@ builder.Services.AddHttpClient("Default", client =>
     client.BaseAddress = new Uri(builder.Configuration.GetValue("BaseAddress", "https://localhost:7137/"));
 });
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Default"));
+
+builder.Services.AddMudServices();
 
 var app = builder.Build();
 
