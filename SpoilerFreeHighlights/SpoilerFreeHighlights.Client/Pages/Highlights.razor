@@ -1,0 +1,30 @@
+﻿<h3>Highlights</h3>
+<!--
+    Sportsnet
+    - NHL
+      - 2025-26 NHL Highlights, News and Analysis
+      - https://www.youtube.com/playlist?list=PLo12SYwt93SQP81ntu8rz9QcAHTNQaFI3
+    - MLB
+      - 2025 Toronto Blue Jays Highlights, News and Interviews
+      - https://www.youtube.com/playlist?list=PLo12SYwt93SQ58d0rRCwMk6eB09nRZOhR
+-->
+@foreach (var video in Videos)
+{
+    <div>
+        <h3>@video.Title</h3>
+        
+        <iframe width="560" height="315"
+                src="https://www.youtube.com/embed/videoseries?list=@yourPlaylistId"
+                frameborder="0"
+                allow="autoplay; encrypted-media"
+                allowfullscreen>
+        </iframe>
+
+    </div>
+}
+
+@code {
+    // Assuming 'Videos' is a List<VideoModel> populated from the Server API
+    public List<VideoModel> Videos { get; set; }
+    private const string yourPlaylistId = "PL...";
+}
