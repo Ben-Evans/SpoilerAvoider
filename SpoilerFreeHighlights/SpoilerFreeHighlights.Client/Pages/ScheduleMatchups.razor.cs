@@ -12,7 +12,7 @@ public partial class ScheduleMatchups
     {
         try
         {
-            var response = await HttpClient.GetFromJsonAsync<Schedule>("/api/GetGames");
+            var response = await HttpClient.GetFromJsonAsync<Schedule>($"/api/GetGames"); // ?date={DateTime.Now.AddDays(-1):yyyy-MM-dd}
 
             games = response.Games;
         }
@@ -22,22 +22,12 @@ public partial class ScheduleMatchups
             games = new();
         }
     }
-}
 
-/*private void ToggleScore(int gameId)
-{
-    var game = games.FirstOrDefault(g => g.Id == gameId);
-    if (game != null)
+    protected static string GetTeamLogoSizing(TeamInfo team)
     {
-        // Assuming you add a 'public bool ShowScore { get; set; }' property to your Game model
-        game.ShowScore = !game.ShowScore;
+        if (team.Abbreviation == "WSH")
+            return "15%";
+
+        return "50%";
     }
 }
-
-private string GetHighlightLink(int gameId)
-{
-    // This is a placeholder. A direct link to a video by game ID is not public.
-    // You would likely link to the Sportsnet NHL Highlights playlist:
-    // https://www.youtube.com/@Sportsnet
-    return "https://www.youtube.com/@Sportsnet/videos";
-}*/

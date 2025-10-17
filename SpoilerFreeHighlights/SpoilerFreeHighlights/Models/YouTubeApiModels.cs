@@ -1,49 +1,61 @@
-﻿using System.Text.Json.Serialization;
+﻿namespace SpoilerFreeHighlights.Models;
 
-namespace SpoilerFreeHighlights.Models;
+public class YouTubePlaylistResponse
+{
+    public string kind { get; set; }
+    public string etag { get; set; }
+    public string nextPageToken { get; set; }
+    public List<PlaylistItem> items { get; set; }
+    public PageInfo pageInfo { get; set; }
+}
 
-// --- YouTube API Response Structure ---
+public class PageInfo
+{
+    public int totalResults { get; set; }
+    public int resultsPerPage { get; set; }
+}
 
-// Resource ID contains the video ID we need
-public record YouTubeResourceId(
-    [property: JsonPropertyName("kind")] string Kind,
-    [property: JsonPropertyName("videoId")] string VideoId
-);
+public class PlaylistItem
+{
+    public string kind { get; set; }
+    public string etag { get; set; }
+    public string id { get; set; }
+    public Snippet snippet { get; set; }
+}
 
-// Individual thumbnail size
-public record YouTubeThumbnail(
-    [property: JsonPropertyName("url")] string Url,
-    [property: JsonPropertyName("width")] int Width,
-    [property: JsonPropertyName("height")] int Height
-);
+public class Snippet
+{
+    public DateTimeOffset publishedAt { get; set; }
+    public string channelId { get; set; }
+    public string title { get; set; }
+    public string description { get; set; }
+    public Thumbnails thumbnails { get; set; }
+    public string channelTitle { get; set; }
+    public string playlistId { get; set; }
+    public int position { get; set; }
+    public ResourceId resourceId { get; set; }
+    public string videoOwnerChannelTitle { get; set; }
+    public string videoOwnerChannelId { get; set; }
+}
 
-// All available thumbnails (default, medium, high)
-public record YouTubeThumbnails(
-    [property: JsonPropertyName("default")] YouTubeThumbnail Default,
-    [property: JsonPropertyName("medium")] YouTubeThumbnail Medium,
-    [property: JsonPropertyName("high")] YouTubeThumbnail High
-);
+public class Thumbnails
+{
+    public Thumbnail defaultThumbnail { get; set; }
+    public Thumbnail medium { get; set; }
+    public Thumbnail high { get; set; }
+    public Thumbnail standard { get; set; }
+    public Thumbnail maxres { get; set; }
+}
 
-// Snippet contains the main video information
-public record YouTubeSnippet(
-    [property: JsonPropertyName("publishedAt")] DateTime PublishedAt,
-    [property: JsonPropertyName("title")] string Title,
-    [property: JsonPropertyName("description")] string Description,
-    [property: JsonPropertyName("channelTitle")] string ChannelTitle,
-    [property: JsonPropertyName("playlistId")] string PlaylistId,
-    [property: JsonPropertyName("position")] int Position,
-    [property: JsonPropertyName("resourceId")] YouTubeResourceId ResourceId,
-    [property: JsonPropertyName("thumbnails")] YouTubeThumbnails Thumbnails
-);
+public class Thumbnail
+{
+    public string url { get; set; }
+    public int width { get; set; }
+    public int height { get; set; }
+}
 
-// A single item in the playlist
-public record YouTubePlaylistItem(
-    [property: JsonPropertyName("id")] string Id,
-    [property: JsonPropertyName("snippet")] YouTubeSnippet Snippet
-);
-
-// Top-level response object
-public record YouTubePlaylistItemsListResponse(
-    [property: JsonPropertyName("nextPageToken")] string NextPageToken,
-    [property: JsonPropertyName("items")] YouTubePlaylistItem[] Items
-);
+public class ResourceId
+{
+    public string kind { get; set; }
+    public string videoId { get; set; }
+}

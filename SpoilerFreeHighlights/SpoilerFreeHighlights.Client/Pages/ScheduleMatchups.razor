@@ -7,24 +7,17 @@
 }
 else
 {
-    <p>Games Today: @games.Count</p>
-
     @foreach (var game in games)
     {
-        @* <h4>@game.HomeTeam.Abbreviation vs. @game.AwayTeam.Abbreviation</h4> *@
-        <div class="matchup-card">
-            <div>
-                <div>
-                    <img src="@game.HomeTeam.LogoLink" alt="@game.HomeTeam.Abbreviation" width="10%" />
-                </div>
-
-                <div>
-                    <img src="@game.AwayTeam.LogoLink" alt="@game.AwayTeam.Abbreviation" width="10%" />
-                </div>
-            </div>
-            @* <a href="@GetHighlightLink(game.Id)" target="_blank">
-                Watch Highlights 📺
-            </a> *@
-        </div>
+        <a href="@game.YouTubeLink" target="_blank" title="@game.StartDateLocal.ToString("yyyy-MM-dd HH:mm")">
+            <MudPaper>
+                <MudPaper Class="d-inline-flex pa-4">
+                    <img src="@game.HomeTeam.LogoLink" alt="@game.HomeTeam.Abbreviation" width="@GetTeamLogoSizing(game.HomeTeam)" />
+                </MudPaper>
+                <MudPaper Class="d-inline-flex pa-4">
+                    <img src="@game.AwayTeam.LogoLink" alt="@game.AwayTeam.Abbreviation" width="@GetTeamLogoSizing(game.AwayTeam)" />
+                </MudPaper>
+            </MudPaper>
+        </a>
     }
 }

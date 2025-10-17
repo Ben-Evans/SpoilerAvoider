@@ -3,7 +3,9 @@
 public class GameInfo
 {
     public int Id { get; set; }
-    public DateTime StartDate { get; set; }
+    public DateTime StartDateLocal { get; set; }
+    public DateTime StartDateUtc { get; set; }
+    public string YouTubeLink { get; set; } = string.Empty;
     public TeamInfo HomeTeam { get; set; } = new TeamInfo();
     public TeamInfo AwayTeam { get; set; } = new TeamInfo();
     //public string CurrentStatus { get; set; } // PREVIEW (not started), LIVE, or FINAL
