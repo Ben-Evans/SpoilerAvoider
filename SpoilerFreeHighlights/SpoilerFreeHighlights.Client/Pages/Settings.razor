@@ -1,0 +1,93 @@
+﻿@using Blazored.LocalStorage
+
+@if (IsInitialized)
+{
+    <MudDialog>
+        <TitleContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.TwoTone.Settings" Class="mr-3 mb-n1" />
+                Settings
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudGrid Class="mt-6 px-4">
+                @foreach (Leagues league in leagues)
+                {
+                    <MudSelect T="@Team" Label="@($"{league.Name.ToUpper()} Teams")" MultiSelection="true" SelectedValues="GetSelectedTeams(league)" SelectedValuesChanged="(teams) => SetSelectedTeams(league, teams)">
+                        <MudItem xs="12">
+                            @foreach (Team leagueTeam in allTeams[league])
+                            {
+                                @* <MudSwitch @bind-Value="league.IsEnabled" Color="Color.Primary" /> *@
+                                <MudSelectItem T="@Team" Value="@leagueTeam">@leagueTeam</MudSelectItem>
+                            }
+                        </MudItem>
+                    </MudSelect>
+                }
+            </MudGrid>
+        </DialogContent>
+        <DialogActions>
+            <MudGrid Class="w-100">
+                <MudItem xs="6">
+                    <MudButton Color="Color.Error" OnClick="ClearPreferences">Clear</MudButton>
+                </MudItem>
+                <MudItem xs="6" Class="d-flex justify-end">
+                    <MudButton OnClick="() => MudDialog.Close()">Cancel</MudButton>
+                    <MudButton Color="Color.Primary" OnClick="SavePreferences">Save</MudButton>
+                </MudItem>
+            </MudGrid>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    [CascadingParameter] public required IMudDialogInstance MudDialog { get; set; }
+
+    [Inject] public required HttpClient httpClient { get; set; }
+    [Inject] public required LocalCacheService localStorage { get; set; }
+    [Inject] public required ISnackbar Snackbar { get; set; }
+
+    protected bool IsInitialized { get; set; }
+
+    protected Leagues[] leagues = Leagues.GetAllLeagues();
+    protected Dictionary<Leagues, Team[]> allTeams;
+    protected UserPreference userPreferences = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomRight;
+
+        var response = await httpClient.GetAsync("/api/GetTeams");
+        response.EnsureSuccessStatusCode();
+
+        var fetchedTeams = await response.Content.ReadFromJsonAsync<Team[]>();
+        allTeams = fetchedTeams
+            .GroupBy(x => Leagues.FromValue(x.LeagueId))
+            .ToDictionary(x => x.Key, x => x.OrderBy(y => y.ToString()).ToArray());
+
+        userPreferences = await localStorage.GetUserPreferences();
+
+        IsInitialized = true;
+    }
+
+    protected List<Team> GetSelectedTeams(Leagues league)
+    {
+        return userPreferences.LeaguePreferences[league];
+    }
+
+    protected void SetSelectedTeams(Leagues league, IEnumerable<Team> teams)
+    {
+        userPreferences.LeaguePreferences[league] = teams.ToList();
+    }
+
+    protected async Task ClearPreferences()
+    {
+        await localStorage.ClearUserPreferences(userPreferences);
+        Snackbar.Add("Preferences cleared.", Severity.Info);
+    }
+
+    protected async Task SavePreferences()
+    {
+        await localStorage.SetUserPreferences(userPreferences);
+        Snackbar.Add("Preferences saved successfully.", Severity.Success);
+    }
+}

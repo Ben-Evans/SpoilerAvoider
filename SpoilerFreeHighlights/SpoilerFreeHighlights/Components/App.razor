@@ -15,9 +15,15 @@
 </head>
 
 <body>
-    <Routes />
+    <!--
+        For apps based on the Blazor Web App project template:
+        https://learn.microsoft.com/en-us/aspnet/core/blazor/components/render-modes?view=aspnetcore-9.0#apply-a-render-mode-to-the-entire-app
+    -->
+    <Routes @rendermode="InteractiveWebAssembly" />
+
     <script src="@Assets["_content/MudBlazor/MudBlazor.min.js"]"></script>
     <script src="_framework/blazor.web.js"></script>
+    <script src="app.js"></script>
 </body>
 
 </html>

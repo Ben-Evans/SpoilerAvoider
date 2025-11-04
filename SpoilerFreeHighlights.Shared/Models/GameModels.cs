@@ -1,39 +1,78 @@
 ﻿namespace SpoilerFreeHighlights.Shared.Models;
 
-public class GameInfo
+public class Game
 {
-    public int Id { get; set; }
-    public DateTime StartDateLocal { get; set; }
+    public string Id { get; set; }
+    public DateTime StartDateLeagueTime { get; set; }
     public DateTime StartDateUtc { get; set; }
+    //public DateTime EstimatedEndDate { get; set; } // Utc / Local
     public string YouTubeLink { get; set; } = string.Empty;
-    public TeamInfo HomeTeam { get; set; } = new TeamInfo();
-    public TeamInfo AwayTeam { get; set; } = new TeamInfo();
-    //public string CurrentStatus { get; set; } // PREVIEW (not started), LIVE, or FINAL
-    public bool IsScoreHidden { get; set; }
+    // Secondary playlistLink
+    //public string YouTubeLinkAlternate { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Likely for playoff games that may or may not happen if Team A beats Team B and moves on to face Team C.
+    /// </summary>
+    public bool IsHypothetical { get; set; }
+
+    public string HomeTeamId { get; set; }
+    public Team HomeTeam { get; set; }
+
+    public string AwayTeamId { get; set; }
+    public Team AwayTeam { get; set; }
+
+    public int LeagueId { get; set; }
+    public League League { get; set; }
+
+    public override string ToString() => $"{HomeTeam?.Abbreviation ?? HomeTeamId ?? "???"} vs {AwayTeam?.Abbreviation ?? AwayTeamId ?? "???"} - {StartDateLeagueTime:yyyy-MM-dd HH:mm}";
 }
 
-public class TeamInfo
+public class Team
 {
-    public int Id { get; set; }
+    public string Id { get; set; }
+    public string City { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Abbreviation { get; set; } = string.Empty;
     public string LogoLink { get; set; } = string.Empty;
-    public int Score { get; set; }
+
+    public int LeagueId { get; set; }
+    public League League { get; set; }
+
+    public override string ToString() => $"{City} {Name}";
+}
+
+public class GameDay
+{
+    public DateOnly Date { get; set; } // TODO: Confirm if this is utc or league time. And update label - include utc and league time?
+    public string DayAbbreviation => Date.ToString("ddd").ToUpper();
+    public List<Game> Games { get; set; } = new();
+
+    public override string ToString() => $"{Date:yyyy-MM-dd} with {Games.Count} games";
 }
 
 public class Schedule
 {
-    public List<GameInfo> Games { get; set; } = new();
+    public Leagues League { get; set; } = Leagues.All;
+    public List<GameDay> GameDays { get; set; } = new();
+
+    public override string ToString()
+    {
+        if (GameDays.Any())
+        {
+            DateOnly[] dates = GameDays.Select(x => x.Date).OrderBy(x => x).ToArray();
+            DateOnly first = dates.First();
+            DateOnly last = dates.Last();
+            return first != last ? $"{League.Name}: {dates.First():yyyy-MM-dd} - {dates.Last():yyyy-MM-dd}" : $"{League.Name}: {dates.First():yyyy-MM-dd}";
+        }
+        return League.Name;
+    }
 }
 
-// LeaguePreferences, PlaylistPreferences, NotificationPreferences, 
-public class TeamPreferences
+/// <summary>
+/// Populated according to <see cref="Leagues" />.
+/// </summary>
+public class League
 {
-    public List<string> Teams { get; set; } = new() { "CGY", "TOR" };
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
 }
-
-public record VideoModel(
-    string Id,
-    string Title,
-    string ThumbnailUrl
-);

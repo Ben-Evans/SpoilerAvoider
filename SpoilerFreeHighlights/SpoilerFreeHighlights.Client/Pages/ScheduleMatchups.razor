@@ -1,23 +1,128 @@
-﻿@page "/nhl"
-@rendermode InteractiveWebAssembly
+﻿@page "/all"
 
-@if (games == null)
+@if (schedule is null)
 {
-    <p><em>Loading today's schedule...</em></p>
+    <p><em>Loading the schedule...</em></p>
 }
 else
 {
-    @foreach (var game in games)
-    {
-        <a href="@game.YouTubeLink" target="_blank" title="@game.StartDateLocal.ToString("yyyy-MM-dd HH:mm")">
-            <MudPaper>
-                <MudPaper Class="d-inline-flex pa-4">
-                    <img src="@game.HomeTeam.LogoLink" alt="@game.HomeTeam.Abbreviation" width="@GetTeamLogoSizing(game.HomeTeam)" />
-                </MudPaper>
-                <MudPaper Class="d-inline-flex pa-4">
-                    <img src="@game.AwayTeam.LogoLink" alt="@game.AwayTeam.Abbreviation" width="@GetTeamLogoSizing(game.AwayTeam)" />
-                </MudPaper>
+    <MudContainer Class="mt-4 px-4" MaxWidth="MaxWidth.False">
+        @if (!schedule.GameDays.Any())
+        {
+            <MudPaper Elevation="0" Class="pa-2 mb-3 d-flex align-center game-day" Style="align-items: stretch;">
+                No games scheduled for configured leagues and teams.
             </MudPaper>
-        </a>
-    }
+        }
+
+        @foreach (GameDay gameDay in schedule.GameDays)
+        {
+            <MudPaper Elevation="0" Class="pa-2 mb-3 d-flex align-center game-day" Style="align-items: stretch;">
+                <div class="game-day-date" title="@gameDay.Date.ToString("yyyy-MM-dd")" aria-label="Games for @gameDay.Date.ToString("yyyy-MM-dd")" style="@(gameDay == schedule.GameDays[0] ? "color: rgba(119,107,231,1)" : string.Empty)">
+                    <div class="date-chip">
+                        <div class="date-month">@gameDay.Date.ToString("MMM")</div>
+                        <div class="date-day">@gameDay.Date.Day</div>
+                        <div class="date-week">@gameDay.Date.ToString("ddd")</div>
+                    </div>
+                </div>
+
+                <div class="games-row">
+                    <div class="games-scroll">
+                        @foreach (Game game in gameDay.Games)
+                        {
+                            <MudTooltip Text="@($"{game} {TimeZoneInfo.Local.StandardName}")" Placement="Placement.Bottom">
+                                <MudLink OnClick="(args) => OpenYouTubeLink(game.YouTubeLink)">
+                                    <div class="game-card">
+                                        <div class="team-logos" style="@(string.IsNullOrEmpty(game.YouTubeLink) ? "opacity: 0.5;" : string.Empty)">
+                                            <div class="d-flex justify-center">
+                                                <MudImage ObjectFit="@ObjectFit.None" Src="@GetTeamLogoLink(game.HomeTeam)" Alt="@game.HomeTeam.Abbreviation" Class="rounded-lg team-logo" />
+                                            </div>
+                                            <div class="d-flex justify-center">
+                                                <MudImage ObjectFit="@ObjectFit.None" Src="@GetTeamLogoLink(game.AwayTeam)" Alt="@game.AwayTeam.Abbreviation" Class="rounded-lg team-logo team-logo--second" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </MudLink>
+                            </MudTooltip>
+                        }
+                    </div>
+                </div>
+            </MudPaper>
+        }
+    </MudContainer>
 }
+
+<style>
+    .game-day-date { flex: 0 0 60px; padding-right: 8px; display:flex; align-items:center; justify-content:center; }
+    .date-chip { display:flex; flex-direction:column; align-items:center; padding:4px 6px; border-radius:8px; background:rgba(0,0,0,0.03); min-width:48px; }
+    .date-month { font-size:0.6rem; font-weight:600; } .date-day { font-size:1rem; font-weight:700; } .date-week { font-size:0.6rem; color:rgba(0,0,0,0.6); }
+
+    .games-row { flex:1 1 auto; display:flex; align-items:center; }
+    .games-scroll { display:flex; gap:8px; width:100%; flex-wrap:wrap; align-items:flex-start; box-sizing:border-box; }
+
+    .game-link { text-decoration:none; color:inherit; display:inline-block; }
+
+    .game-card {
+        min-width:138px;
+        max-width:188px;
+        border-radius:8px;
+        border:1px solid rgba(0,0,0,0.04);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        box-sizing:border-box;
+        background:transparent;
+        transition:transform .12s ease;
+    }
+    .game-card:hover { transform:translateY(-4px); }
+
+    .team-logos { display:flex; align-items:center; justify-content:center; gap:0; box-shadow:4px 4px 4px rgba(0,0,0,0.1); }
+    .team-logo {
+        width:90px;
+        height:90px;
+        object-fit:contain;
+        border-radius:8px;
+        display:block;
+        background: rgba(255,255,255,0.0);
+    }
+
+    .team-logo--second { margin-left:-5px; z-index:1; }
+
+    .dialog-popup {
+        backdrop-filter: blur(10px);
+    }
+
+    /* mobile: make the date a skinny banner above the matchups */
+    @@media (max-width: 425px) {
+        /* stack elements vertically and stretch */
+        .game-day { flex-direction: column; align-items: stretch; gap:8px; }
+
+        /* full-width skinny banner */
+        .game-day-date {
+            flex: 0 0 auto;
+            padding: 6px 8px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* make the chip expand horizontally into a banner */
+        .date-chip {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 6px 12px;
+            border-radius: 6px;
+            min-width: auto;
+            box-sizing: border-box;
+        }
+
+        /* slightly smaller text for the banner */
+        .date-month { font-size:0.65rem; font-weight:600; margin-right:8px; }
+        .date-day { font-size:1rem; font-weight:700; }
+        .date-week { font-size:0.65rem; color:rgba(0,0,0,0.6); margin-left:8px; }
+
+        /* games should take full width under the banner */
+        .games-row { width:100%; }
+        .game-card { min-width:100%; max-width:100%; }
+    }
+</style>

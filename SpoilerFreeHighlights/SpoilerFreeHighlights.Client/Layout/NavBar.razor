@@ -1,0 +1,30 @@
+﻿<MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@DrawerToggle" />
+
+Spoiler Avoider
+
+<MudSpacer />
+
+<MudMenu Dense="true" Variant="Variant.Text" Size="Size.Medium" Color="Color.Inherit" Icon="@Icons.Material.TwoTone.MoreVert">
+    <MudMenuItem Icon="@Icons.Material.TwoTone.Settings" IconColor="Color.Primary" Label="Settings" OnClick="OpenSettings" /><!--Href="/Settings"-->
+</MudMenu>
+
+@code {
+    [Parameter] public EventCallback<MouseEventArgs> DrawerToggle { get; set; }
+
+    [Inject] public required IDialogService DialogService { get; set; }
+
+    protected Task OpenSettings()
+    {
+        DialogOptions dialogOptions = new()
+        {
+            CloseOnEscapeKey = true,
+            BackgroundClass = "dialog-popup",
+            // NoHeader = true,
+            // FullWidth = true,
+            MaxWidth = MaxWidth.Small,
+            CloseButton = true
+        };
+
+        return DialogService.ShowAsync<Settings>("Settings", dialogOptions);
+    }
+}

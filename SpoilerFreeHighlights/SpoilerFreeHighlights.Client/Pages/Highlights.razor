@@ -1,22 +1,25 @@
-﻿<h3>Highlights</h3>
-
-@foreach (var video in Videos)
+﻿@if (!string.IsNullOrEmpty(YouTubeVideoLink))
 {
-    <div>
-        <h3>@video.Title</h3>
-        
-        <iframe width="560" height="315"
-                src="https://www.youtube.com/embed/videoseries?list=@yourPlaylistId"
-                frameborder="0"
-                allow="autoplay; encrypted-media"
-                allowfullscreen>
+    <div class="iframe-parent">
+        <!-- YouTube embed / iframe with Blazor causes some exception in VS. Hoping this will get patched. -->
+        <!-- "https://www.youtube-nocookie.com/embed/Wpllj0cPkjw?autoplay=1" -->
+        <iframe id="player" frameborder="0" allowfullscreen="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerpolicy="strict-origin-when-cross-origin" src="@YouTubeVideoLink">
         </iframe>
-
     </div>
 }
 
 @code {
-    // Assuming 'Videos' is a List<VideoModel> populated from the Server API
-    public List<VideoModel> Videos { get; set; }
-    private const string yourPlaylistId = "PL...";
+    [Parameter]
+    public string YouTubeVideoLink { get; set; } = string.Empty;
 }
+
+<style>
+    .iframe-parent {
+        height: 80vh;
+    }
+
+    .iframe-parent iframe {
+        position: absolute;
+    }
+</style>
