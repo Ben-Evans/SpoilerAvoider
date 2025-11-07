@@ -21,7 +21,7 @@ builder.Host.UseSerilog();
 builder.Services.Configure<YouTubeSettings>(
     builder.Configuration.GetSection(YouTubeRssConstants.YouTubeSectionName));
 
-// Register HttpClient for Server and Client DI.
+// Register HttpClient for Server and BlazorClient DI.
 builder.Services.AddHttpClient("Default", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration.GetValue("BaseAddress", "https://localhost:7137/"));
@@ -71,7 +71,7 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     //.AddInteractiveServerRenderMode()
-    .AddAdditionalAssemblies(typeof(SpoilerFreeHighlights.Client._Imports).Assembly);
+    .AddAdditionalAssemblies(typeof(SpoilerFreeHighlights.BlazorClient._Imports).Assembly);
 
 
 app.MapGet("/api/reset", async (AppDbContext dbContext) =>

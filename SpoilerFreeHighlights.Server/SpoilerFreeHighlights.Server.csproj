@@ -9,7 +9,7 @@
 	
   <ItemGroup>
     <ProjectReference Include="..\SpoilerFreeHighlights.Shared\SpoilerFreeHighlights.Shared.csproj" />
-    <ProjectReference Include="..\SpoilerFreeHighlights.Client\SpoilerFreeHighlights.Client.csproj" />
+    <ProjectReference Include="..\SpoilerFreeHighlights.BlazorClient\SpoilerFreeHighlights.BlazorClient.csproj" />
     <PackageReference Include="FuzzySharp" Version="2.0.2" />
     <PackageReference Include="Ical.Net" Version="5.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.8" />

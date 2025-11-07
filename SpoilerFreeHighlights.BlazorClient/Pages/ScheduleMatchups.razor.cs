@@ -1,7 +1,7 @@
 using MudBlazor;
 using System.Net.Http.Json;
 
-namespace SpoilerFreeHighlights.Client.Pages;
+namespace SpoilerFreeHighlights.BlazorClient.Pages;
 
 public partial class ScheduleMatchups : IDisposable
 {

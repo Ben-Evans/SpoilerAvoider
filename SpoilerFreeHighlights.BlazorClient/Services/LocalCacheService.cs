@@ -1,6 +1,6 @@
 ﻿using Blazored.LocalStorage;
 
-namespace SpoilerFreeHighlights.Client.Services;
+namespace SpoilerFreeHighlights.BlazorClient.Services;
 
 public class LocalCacheService(ILocalStorageService _localStorage)
 {

@@ -1,4 +1,4 @@
-﻿namespace SpoilerFreeHighlights.Client.Services;
+﻿namespace SpoilerFreeHighlights.BlazorClient.Services;
 
 public class TimeZoneHandler(TimeZoneService _timeZoneService) : DelegatingHandler
 {

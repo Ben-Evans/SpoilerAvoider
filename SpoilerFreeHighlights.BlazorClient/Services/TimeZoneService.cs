@@ -1,6 +1,6 @@
 ﻿using Microsoft.JSInterop;
 
-namespace SpoilerFreeHighlights.Client.Services;
+namespace SpoilerFreeHighlights.BlazorClient.Services;
 
 public class TimeZoneService(IJSRuntime _js, ILogger<TimeZoneService> _logger)
 {
