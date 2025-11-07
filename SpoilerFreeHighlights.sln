@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36414.22
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpoilerFreeHighlights", "SpoilerFreeHighlights\SpoilerFreeHighlights\SpoilerFreeHighlights.csproj", "{0695C455-864F-47C3-968D-0E32C27B2D0A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpoilerFreeHighlights.Server", "SpoilerFreeHighlights.Server\SpoilerFreeHighlights.Server.csproj", "{0695C455-864F-47C3-968D-0E32C27B2D0A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpoilerFreeHighlights.Client", "SpoilerFreeHighlights\SpoilerFreeHighlights.Client\SpoilerFreeHighlights.Client.csproj", "{00A86F53-C48E-4ECD-AC79-DB01094610A8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpoilerFreeHighlights.Client", "SpoilerFreeHighlights.Client\SpoilerFreeHighlights.Client.csproj", "{00A86F53-C48E-4ECD-AC79-DB01094610A8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpoilerFreeHighlights.Shared", "SpoilerFreeHighlights.Shared\SpoilerFreeHighlights.Shared.csproj", "{4B9A1FE2-D5AD-43A0-BA66-86843D2D2BAF}"
 EndProject
