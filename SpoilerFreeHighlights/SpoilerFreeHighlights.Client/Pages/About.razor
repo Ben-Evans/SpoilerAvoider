@@ -9,18 +9,21 @@
         </MudText>
 
         <MudText Typo="Typo.body1" Class="mb-4">
-            All code is available on GitHub:
-            <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Edge="Edge.Start" Href="https://github.com/Ben-Evans/SpoilerAvoider" Target="_blank" Class="ml-1" />
+            Go check out <MudLink Href="https://www.dtmts.com/" Target="_blank">Don't Tell Me The Score (DTMTS)</MudLink> too.
+            This project is not affiliated with them, but they are a great alternative and provided inspiration!
+            The goal is to add further customization, Android notifications + widget support, and to allow for adding additional leagues.
         </MudText>
 
         <MudText Typo="Typo.body1" Class="mb-4">
             Feel free to self-host your own instance or continue using this one for free. If you find this project useful, please consider starring the repository on GitHub to show your support!
         </MudText>
 
+        @{
+            string contactEmail = "SpoilerAvoiderApp@gmail.com";
+        }
         <MudText Typo="Typo.body1" Class="mb-4">
-            Go check out <MudLink Href="https://www.dtmts.com/" Target="_blank">Don't Tell Me The Score (DTMTS)</MudLink> too.
-            This project is not affiliated with them in any way, but they are a great alternative!
-            The project goal is to add further customization, Android notifications + widget support, and to allow for adding additional leagues.
+            <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Primary" Edge="Edge.Start" Href="https://github.com/Ben-Evans/SpoilerAvoider" Target="_blank" Class="ml-1" />
+            <MudIconButton Icon="@Icons.Material.Filled.Email" Color="Color.Primary" Edge="Edge.Start" Href="@($"mailto:{contactEmail}")" Class="ml-1" /> @contactEmail
         </MudText>
     </MudPaper>
 </MudContainer>

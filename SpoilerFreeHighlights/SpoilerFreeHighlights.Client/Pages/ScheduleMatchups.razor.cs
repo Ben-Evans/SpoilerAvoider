@@ -25,9 +25,9 @@ public partial class ScheduleMatchups : IDisposable
     protected static string GetTeamLogoLink(Team team)
     {
         if (team.LeagueId == Leagues.Nhl && team.ToString() == "Washington Capitals")
-            return $"/Resources/Team-Logos/Resized/{Leagues.Nhl.Name}/{team.Abbreviation}.svg";
+            return $"/Resources/Team-Logos/{Leagues.Nhl.Name}/Resized/{team.Abbreviation}.svg";
         else if (team.LeagueId == Leagues.Cfl)
-            return $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/{team.Abbreviation}.svg";
+            return $"/Resources/Team-Logos/{Leagues.Cfl.Name}/Originals/{team.Abbreviation}.svg";
 
         return team.LogoLink;
     }

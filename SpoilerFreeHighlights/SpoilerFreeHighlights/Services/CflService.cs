@@ -84,6 +84,7 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
 
     public static async Task SeedTeams(AppDbContext dbContext)
     {
+        string logoLink = $"/Resources/Team-Logos{Leagues.Cfl.Name}/Originals";
         Team[] cflTeams =
         [
             // WEST DIVISION
@@ -94,7 +95,7 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
                 Name = "Stampeders",
                 City = "Calgary",
                 Abbreviation = "CGY",
-                LogoLink = $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/CGY.svg"
+                LogoLink = $"{logoLink}/CGY.svg"
             },
             new Team
             {
@@ -103,7 +104,7 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
                 Name = "Elks",
                 City = "Edmonton",
                 Abbreviation = "EDM",
-                LogoLink = $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/EDM.svg"
+                LogoLink = $"{logoLink}/EDM.svg"
             },
             new Team
             {
@@ -112,7 +113,7 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
                 Name = "Lions",
                 City = "BC",
                 Abbreviation = "BC",
-                LogoLink = $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/BC.svg"
+                LogoLink = $"{logoLink}/BC.svg"
             },
             new Team
             {
@@ -121,7 +122,7 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
                 Name = "Blue Bombers",
                 City = "Winnipeg",
                 Abbreviation = "WPG",
-                LogoLink = $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/WPG.svg"
+                LogoLink = $"{logoLink}/WPG.svg"
             },
             new Team
             {
@@ -130,7 +131,7 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
                 Name = "Roughriders",
                 City = "Saskatchewan",
                 Abbreviation = "SSK",
-                LogoLink = $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/SSK.svg"
+                LogoLink = $"{logoLink}/SSK.svg"
             },
 
             // EAST DIVISION
@@ -141,7 +142,7 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
                 Name = "Tiger-Cats",
                 City = "Hamilton",
                 Abbreviation = "HAM",
-                LogoLink = $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/HAM.svg"
+                LogoLink = $"{logoLink}/HAM.svg"
             },
             new Team
             {
@@ -150,7 +151,7 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
                 Name = "Alouettes",
                 City = "Montreal",
                 Abbreviation = "MTL",
-                LogoLink = $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/MTL.svg"
+                LogoLink = $"{logoLink}/MTL.svg"
             },
             new Team
             {
@@ -159,7 +160,7 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
                 Name = "Redblacks",
                 City = "Ottawa",
                 Abbreviation = "OTT",
-                LogoLink = $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/OTT.svg"
+                LogoLink = $"{logoLink}/OTT.svg"
             },
             new Team
             {
@@ -168,7 +169,7 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
                 Name = "Argonauts",
                 City = "Toronto",
                 Abbreviation = "TOR",
-                LogoLink = $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/TOR.svg"
+                LogoLink = $"{logoLink}/TOR.svg"
             }
         ];
 
