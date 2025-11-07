@@ -88,7 +88,7 @@ public static class FakeDataService
             allSchedule.GameDays.Add(
                 new GameDay()
                 {
-                    Date = DateOnly.FromDateTime(leagueDateTime),
+                    DateLeague = DateOnly.FromDateTime(leagueDateTime),
                     Games = new()
                     {
                         new Game()

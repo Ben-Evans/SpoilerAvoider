@@ -25,6 +25,7 @@ public class PlaylistConfiguration
     public string ChannelName { get; set; } = string.Empty;
     public int RequiredVideoPartMatches { get; set; } = 3;
     public int RequiredVideoTitlePercentageMatch { get; set; } = 96;
+    public string TitlePattern { get; set; } = string.Empty;
 
     public List<string> TitleIdentifiers { get; set; } = new();
     public List<string> TeamFormats { get; set; } = new();

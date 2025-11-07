@@ -1,4 +1,6 @@
-﻿namespace SpoilerFreeHighlights.Services;
+﻿using Microsoft.Extensions.Options;
+
+namespace SpoilerFreeHighlights.Services;
 
 public class LeaguesService(
     NhlService _nhlService,
@@ -41,6 +43,7 @@ public class LeaguesService(
         Game[] allFetchedGames = schedules.SelectMany(x => x.GameDays.SelectMany(y => y.Games)).ToArray();
         string[] fetchedGameIds = allFetchedGames.Select(x => x.Id).ToArray();
 
+        // Set teams to null to comply with EF model references during saving.
         foreach (Game game in allFetchedGames)
         {
             game.HomeTeam = null;
@@ -53,78 +56,15 @@ public class LeaguesService(
             .ToArrayAsync();
 
         // TODO: Also delete old games that may have change, like hyphothetical games that have been corrected
-        Game[] onlyNew = allFetchedGames
+        Game[] newGames = allFetchedGames
             .Where(x => !existingIds.Contains(x.Id))
             .ToArray();
-        if (onlyNew.Any())
+        if (newGames.Any())
         {
-            _logger.Information("Adding '{GameCount}' new games to DB.", onlyNew.Length);
-            foreach (Game newGame in onlyNew)
-            {
-                _logger.Information("Adding game: '{GameInfo}'.", new { newGame.Id, Date = newGame.StartDateLeagueTime.ToString("yyyy-MM-dd HH:mm"), newGame.HomeTeamId, newGame.AwayTeamId });
+            _logger.Information("Adding '{GameCount}' new games to DB.", newGames.Length);
 
-                try
-                {
-                    _dbContext.Games.Add(newGame);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex, "Couldn't add");
-                }
-
-                try
-                {
-                    await _dbContext.SaveChangesAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex, "Couldn't save");
-                }
-            }
-
-            //_dbContext.Games.AddRange(onlyNew);
-            //await _dbContext.SaveChangesAsync();
-        }
-    }
-
-    /// <summary>
-    /// Ensures that all related Team entities are marked as Unchanged, 
-    /// preventing EF Core from trying to insert them as duplicates.
-    /// </summary>
-    private void MarkRelatedTeamsAsUnchanged(AppDbContext dbContext, IEnumerable<Game> games)
-    {
-        // Use a HashSet to track which unique Team entities we've processed, 
-        // to avoid trying to set the state of the same entity key multiple times.
-        var uniqueTeams = new HashSet<Team>();
-
-        foreach (var game in games)
-        {
-            if (game.HomeTeam != null)
-            {
-                uniqueTeams.Add(game.HomeTeam);
-            }
-            if (game.AwayTeam != null)
-            {
-                uniqueTeams.Add(game.AwayTeam);
-            }
-        }
-
-        foreach (var team in uniqueTeams)
-        {
-            // Check if the entity is already being tracked. This avoids the InvalidOperationException.
-            var existingEntry = dbContext.Entry(team);
-
-            // If the entity is not already tracked (or is in the 'Added' state from a prior operation, 
-            // though that's less likely here), we can safely attach it.
-            if (existingEntry.State == EntityState.Detached)
-            {
-                // Attach the entity to the DbContext, telling EF Core that this 
-                // entity is expected to exist in the database (Unchanged state).
-                dbContext.Teams.Attach(team);
-            }
-            // Note: If it's already tracked (e.g., EntityState.Unchanged), we do nothing.
-            // If it's EntityState.Added, we might have a logic issue, but Attach will handle 
-            // Detached and Unchanged gracefully.
+            _dbContext.Games.AddRange(newGames);
+            await _dbContext.SaveChangesAsync();
         }
     }
 }
@@ -137,24 +77,25 @@ public abstract class LeagueService(AppDbContext _dbContext, IConfiguration _con
 
     public async Task<Schedule?> GetScheduleForThisWeek(UserPreference userPreference)
     {
-        // Limit whih days get displayed.
+        // Limit which days get displayed.
         DateTime daysForward = League.LeagueDateTimeToday.AddDays(_configuration.GetValue<int>("DisplayDaysForward"));
         DateTime daysBack = League.LeagueDateTimeToday.AddDays(-_configuration.GetValue<int>("DisplayDaysBack"));
 
         Game[] games = await _dbContext.Games
             .Include(x => x.HomeTeam)
             .Include(x => x.AwayTeam)
-            .Where(x => x.LeagueId == League && x.StartDateLeagueTime.Date <= daysForward && x.StartDateLeagueTime.Date >= daysBack)
+            .Where(x => x.LeagueId == League
+                && x.StartDateLeagueTime.Date <= daysForward && x.StartDateLeagueTime.Date >= daysBack)
             .ToArrayAsync();
 
         GameDay[] gameDays = games
             .GroupBy(x => x.StartDateLeagueTime.Date)
             .Select(x => new GameDay()
             {
-                Date = DateOnly.FromDateTime(x.Key),
+                DateLeague = DateOnly.FromDateTime(x.Key),
                 Games = x.OrderBy(y => y.StartDateLeagueTime).ToList()
             })
-            .OrderByDescending(x => x.Date)
+            .OrderByDescending(x => x.DateLeague)
             .ToArray();
 
         string[] preferredTeamIds = userPreference.LeaguePreferences[League].Select(team => team.Id).ToArray();

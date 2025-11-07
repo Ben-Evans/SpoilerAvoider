@@ -14,14 +14,41 @@ public class NhlService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
         return schedule;
     }
 
-    public static Schedule ConvertFromNhlApiToUsableModels(NhlApiSchedule nhlSchedule)
+    public static async Task SeedTeams(AppDbContext dbContext, HttpClient httpClient)
+    {
+        // Trying to pick a likely date to ensure all teams play that week. Might be able to pick any week though.
+        DateOnly date = DateOnly.FromDateTime(new DateTime(DateTime.Now.Year, 10, 21));
+
+        NhlApiSchedule? nhlApiSchedule = await FetchScheduleDataFromNhlApi(date, httpClient);
+
+        Schedule schedule = ConvertFromNhlApiToUsableModels(nhlApiSchedule);
+
+        List<Team> teams = new();
+        foreach (Game game in schedule.GameDays.SelectMany(gd => gd.Games))
+        {
+            if (!teams.Any(x => x.Id == game.HomeTeam.Id))
+                teams.Add(game.HomeTeam);
+
+            if (!teams.Any(x => x.Id == game.AwayTeam.Id))
+                teams.Add(game.AwayTeam);
+        }
+
+        Team[] nhlTeams = teams.DistinctBy(x => x.Id).OrderBy(x => x.ToString()).ToArray();
+
+        _logger.Information("Seeding NHL teams into the database...");
+        dbContext.Teams.AddRange(nhlTeams);
+        dbContext.SaveChanges();
+        _logger.Information("NHL teams seeded successfully.");
+    }
+
+    private static Schedule ConvertFromNhlApiToUsableModels(NhlApiSchedule nhlSchedule)
     {
         Schedule schedule = new()
         {
             League = Leagues.Nhl,
             GameDays = nhlSchedule.GameWeek.Select(gw => new GameDay()
             {
-                Date = gw.Date, // TODO: Confirm if this is utc or league time
+                DateLeague = gw.Date,
                 Games = gw.Games.Select(game => new Game()
                 {
                     Id = game.Id.ToString(),
@@ -57,33 +84,6 @@ public class NhlService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
         };
 
         return schedule;
-    }
-
-    public static async Task SeedTeams(AppDbContext dbContext, HttpClient httpClient)
-    {
-        // Trying to pick a likely date to ensure all teams play that week. Might be able to pick any week though.
-        DateOnly date = DateOnly.FromDateTime(new DateTime(DateTime.Now.Year, 10, 21));
-
-        NhlApiSchedule? nhlApiSchedule = await FetchScheduleDataFromNhlApi(date, httpClient);
-
-        Schedule schedule = ConvertFromNhlApiToUsableModels(nhlApiSchedule);
-
-        List<Team> teams = new();
-        foreach (Game game in schedule.GameDays.SelectMany(gd => gd.Games))
-        {
-            if (!teams.Any(x => x.Id == game.HomeTeam.Id))
-                teams.Add(game.HomeTeam);
-
-            if (!teams.Any(x => x.Id == game.AwayTeam.Id))
-                teams.Add(game.AwayTeam);
-        }
-
-        Team[] nhlTeams = teams.DistinctBy(x => x.Id).OrderBy(x => x.ToString()).ToArray();
-
-        _logger.Information("Seeding NHL teams into the database...");
-        dbContext.Teams.AddRange(nhlTeams);
-        dbContext.SaveChanges();
-        _logger.Information("NHL teams seeded successfully.");
     }
 
     private static Task<NhlApiSchedule?> FetchScheduleDataFromNhlApi(DateOnly date, HttpClient httpClient) => httpClient.FetchContent<NhlApiSchedule?>($"https://api-web.nhle.com/v1/schedule/{date:yyyy-MM-dd}");

@@ -22,8 +22,13 @@ public class YouTubeVideo(string id, string title, DateTime publishedDateUtc, Da
     public string Id { get; set; } = id;
     public string Title { get; set; } = title;
     public DateTime PublishedDateTimeLeague { get; set; } = publishedDateTimeLeague;
-    public DateTime PublishedDateUtc { get; set; } = publishedDateUtc; // TODO: Is it worth saving utc dates?
+    public DateTime PublishedDateUtc { get; set; } = publishedDateUtc;
     public string Link { get; set; } = link;
+    public string ExtractedTitleTeamA { get; set; } = string.Empty;
+    public string ExtractedTitleTeamB { get; set; } = string.Empty;
+    public DateOnly? ExtractedTitleDate { get; set; }
+    public string ExtractedTitleIdentifierA { get; set; } = string.Empty;
+    public string ExtractedTitleIdentifierB { get; set; } = string.Empty;
 
     public string PlaylistId { get; set; }
     public YouTubePlaylist Playlist { get; set; }

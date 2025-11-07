@@ -43,7 +43,7 @@ builder.Services.AddScoped<LeaguesService>();
 builder.Services.AddScoped<YouTubeRssService>();
 //builder.Services.AddHostedService<DataCleanupService>();
 //builder.Services.AddHostedService<LeagueScheduleRefreshService>();
-//builder.Services.AddHostedService<YouTubeRssRefreshService>();
+builder.Services.AddHostedService<YouTubeRssRefreshService>();
 
 builder.Services.AddMudServices();
 
@@ -85,13 +85,16 @@ app.MapGet("/api/reset", async (AppDbContext dbContext) =>
     await dbContext.SaveChangesAsync();
 });
 
-app.MapGet("/api/test", async (LeaguesService leaguesService, YouTubeRssService youTubeRssService) =>
+app.MapGet("/api/test/s", async (LeaguesService leaguesService) =>
 {
     await leaguesService.FetchAndCacheScheduledGames();
+});
 
-    //await youTubeRssService.FetchAndCacheNewVideos();
+app.MapGet("/api/test/yt", async (YouTubeRssService youTubeRssService) =>
+{
+    await youTubeRssService.FetchAndCacheNewVideos();
 
-    //await youTubeRssService.AddYouTubeLinksToAllMatches();
+    await youTubeRssService.AddYouTubeLinksToAllMatches();
 });
 
 app.MapGet("/api/GetTeams", async (AppDbContext dbContext) =>
@@ -132,57 +135,15 @@ app.MapPost("/api/GetGameDays", async (
         League = Leagues.All,
         GameDays = schedules
             .SelectMany(x => x.GameDays)
-            .GroupBy(x => x.Date)
+            .GroupBy(x => x.DateLeague)
             .Select(x => new GameDay
             {
-                Date = x.Key,
+                DateLeague = x.Key,
                 Games = x.SelectMany(y => y.Games).OrderBy(y => y.StartDateUtc).ToList()
             })
             .ToList()
     };
 
-    return allSchedule is not null
-        ? Results.Ok(allSchedule)
-        : Results.Problem("Failed to deserialize external API response.", statusCode: 500);
-});
-
-app.MapPost("/api/GetGameDaysFake", async (
-    NhlService nhlService,
-    MlbService mlbService,
-    CflService cflService,
-    YouTubeRssService ytRssService,
-    HttpContext httpContext,
-    IConfiguration configuration,
-    IOptions <YouTubeSettings> _youtubeConfigOptions,
-    [FromBody] ScheduleQuery scheduleQuery) =>
-{
-    var fakeData = FakeDataService.GetFakeData();
-    var allSchedule = fakeData.Schedule;
-
-    //await ytRssService.FetchAndAddLatestYouTubeRssDataForLeague(leagueSchedule);
-    if (!_youtubeConfigOptions.Value.LeaguePlaylists.TryGetValue(allSchedule.League.Name, out LeaguePlaylistSettings? playlistSettings) || playlistSettings is null)
-        throw new Exception($"No properly formatted playlist settings found for league '{allSchedule.League.Name}'.");
-
-    //YouTubeRssService.MatchVideosToGames(allSchedule, playlist, playlistSettings.Playlists.First());
-    //YouTubeRssService.AddYouTubeLinksToMatches(allSchedule, playlist, playlistSettings.Playlists.First());
-
-    // Filter by user preferences
-    Leagues league = allSchedule.League;
-    string[] preferredTeamIds = scheduleQuery.UserPreferences.LeaguePreferences[league].Select(team => team.Id).ToArray();
-    if (preferredTeamIds.Any())
-        foreach (GameDay gameDay in allSchedule.GameDays)
-            gameDay.Games = gameDay.Games.Where(x => preferredTeamIds.Any(y => y == x.HomeTeam.Id || y == x.AwayTeam.Id)).ToList();
-
-    // Limit what days get displayed.
-    DateOnly daysForward = scheduleQuery.UserToday.AddDays(configuration.GetValue<int>("DisplayDaysForward"));
-    DateOnly daysBack = scheduleQuery.UserToday.AddDays(-configuration.GetValue<int>("DisplayDaysBack"));
-
-    allSchedule.GameDays = allSchedule.GameDays
-        .Where(x => x.Date <= daysForward && x.Date >= daysBack
-            && x.Games.Any())
-        .OrderByDescending(x => x.Date).ToList();
-
-    Log.Logger.Information("Returning schedule results.");
     return allSchedule is not null
         ? Results.Ok(allSchedule)
         : Results.Problem("Failed to deserialize external API response.", statusCode: 500);

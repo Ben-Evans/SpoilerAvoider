@@ -43,11 +43,11 @@ public class Team
 
 public class GameDay
 {
-    public DateOnly Date { get; set; } // TODO: Confirm if this is utc or league time. And update label - include utc and league time?
-    public string DayAbbreviation => Date.ToString("ddd").ToUpper();
+    public DateOnly DateLeague { get; set; }
+    public string DayAbbreviation => DateLeague.ToString("ddd").ToUpper();
     public List<Game> Games { get; set; } = new();
 
-    public override string ToString() => $"{Date:yyyy-MM-dd} with {Games.Count} games";
+    public override string ToString() => $"{DateLeague:yyyy-MM-dd} with {Games.Count} games";
 }
 
 public class Schedule
@@ -59,7 +59,7 @@ public class Schedule
     {
         if (GameDays.Any())
         {
-            DateOnly[] dates = GameDays.Select(x => x.Date).OrderBy(x => x).ToArray();
+            DateOnly[] dates = GameDays.Select(x => x.DateLeague).OrderBy(x => x).ToArray();
             DateOnly first = dates.First();
             DateOnly last = dates.Last();
             return first != last ? $"{League.Name}: {dates.First():yyyy-MM-dd} - {dates.Last():yyyy-MM-dd}" : $"{League.Name}: {dates.First():yyyy-MM-dd}";

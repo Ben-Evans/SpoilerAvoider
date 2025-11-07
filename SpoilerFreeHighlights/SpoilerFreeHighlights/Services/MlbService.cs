@@ -24,7 +24,7 @@ public class MlbService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
         {
             GameDay gameDay = new()
             {
-                Date = DateOnly.Parse(mlbDate.Date) // TODO: Confirm if this is utc or league time
+                DateLeague = DateOnly.Parse(mlbDate.Date)
             };
 
             foreach (MlbApiGame mlbGame in mlbDate.Games)

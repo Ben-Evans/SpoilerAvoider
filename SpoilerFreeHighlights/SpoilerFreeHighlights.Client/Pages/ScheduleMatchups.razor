@@ -1,4 +1,5 @@
 ﻿@page "/all"
+@page "/{*pageRoute}"
 
 @if (schedule is null)
 {
@@ -17,14 +18,15 @@ else
         @foreach (GameDay gameDay in schedule.GameDays)
         {
             <MudPaper Elevation="0" Class="pa-2 mb-3 d-flex align-center game-day" Style="align-items: stretch;">
-                <div class="game-day-date" title="@gameDay.Date.ToString("yyyy-MM-dd")" aria-label="Games for @gameDay.Date.ToString("yyyy-MM-dd")" style="@(gameDay == schedule.GameDays[0] ? "color: rgba(119,107,231,1)" : string.Empty)">
+                <div class="game-day-date" title="@gameDay.DateLeague.ToString("yyyy-MM-dd")" aria-label="Games for @gameDay.DateLeague.ToString("yyyy-MM-dd")" style="@(gameDay == schedule.GameDays[0] ? "color: rgba(119,107,231,1)" : string.Empty)">
                     <div class="date-chip">
-                        <div class="date-month">@gameDay.Date.ToString("MMM")</div>
-                        <div class="date-day">@gameDay.Date.Day</div>
-                        <div class="date-week">@gameDay.Date.ToString("ddd")</div>
+                        <div class="date-month">@gameDay.DateLeague.ToString("MMM")</div>
+                        <div class="date-day">@gameDay.DateLeague.Day</div>
+                        <div class="date-week">@gameDay.DateLeague.ToString("ddd")</div>
                     </div>
                 </div>
 
+                <!-- TODO: Look into MudStack instead. -->
                 <div class="games-row">
                     <div class="games-scroll">
                         @foreach (Game game in gameDay.Games)

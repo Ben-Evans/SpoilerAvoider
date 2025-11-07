@@ -1,6 +1,6 @@
-﻿using FuzzySharp;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using System.ServiceModel.Syndication;
+using System.Text.RegularExpressions;
 using System.Xml;
 
 namespace SpoilerFreeHighlights.Services;
@@ -12,95 +12,17 @@ public class YouTubeRssService(
 {
     private static readonly ILogger _logger = Log.ForContext<YouTubeRssService>();
 
-    public async Task<YouTubePlaylist[]> FetchAndAddLatestYouTubeRssDataForLeague(Schedule schedule)
-    {
-        if (schedule.League == Leagues.All)
-            throw new ArgumentException("League must be specified to fetch YouTube RSS data.");
-
-        if (!_youtubeConfigOptions.Value.LeaguePlaylists.TryGetValue(schedule.League.Name, out LeaguePlaylistSettings? playlistSettings) || playlistSettings is null)
-            throw new Exception($"No properly formatted playlist settings found for league '{schedule.League.Name}'.");
-
-        List<PlaylistConfiguration> playlistConfigs = new();
-        string playlistSelectionMode = playlistSettings.SelectPlaylist;
-        switch (playlistSelectionMode)
-        {
-            case "All":
-                playlistConfigs.AddRange(playlistSettings.Playlists);
-                break;
-            case "Single":
-            case "First":
-                playlistConfigs.Add(playlistSettings.Playlists.First());
-                break;
-            default:
-                throw new NotImplementedException($"Unrecognized or missing playlist selection mode for league '{schedule.League.Name}'.");
-        }
-
-        //List<YouTubePlaylist> finalPlaylists = new();
-
-        foreach (PlaylistConfiguration playlistConfig in playlistConfigs)
-        {
-            YouTubePlaylist newPlaylist = FetchLatestVideosFromRssFeed(playlistConfig.Id, schedule.League);
-
-            // TODO: Ensure this is proper...
-            // Discard any shorts or videos with unlikely dates
-            //int reasonablePublishDate = (video.PublishedDate >= game.StartDateUtc && video.PublishedDate < game.StartDateUtc.AddDays(2)) ? 1 : 0;
-            DateTime leagueDateTimeToday = schedule.League.LeagueDateTimeToday;
-            newPlaylist.Videos = newPlaylist.Videos
-                .Where(x => !x.Link.Contains("/shorts/") && x.PublishedDateTimeLeague >= leagueDateTimeToday && x.PublishedDateTimeLeague < leagueDateTimeToday.AddDays(8))
-                .ToList();
-
-            if (!newPlaylist.Videos.Any())
-                continue;
-
-            YouTubePlaylist? existingPlaylist = await _dbContext.YouTubePlaylists
-                .Include(r => r.Videos)
-                .FirstOrDefaultAsync(r => r.Id == playlistConfig.Id);
-            if (existingPlaylist is null)
-            {
-                // **Scenario A: Playlist is NEW**
-                _dbContext.YouTubePlaylists.Add(newPlaylist);
-                // After saving, use the added entity for the final result
-                //finalPlaylists.Add(newPlaylist);
-            }
-            else
-            {
-                // **Scenario B: Playlist EXISTS**
-                string[] existingVideoIds = existingPlaylist.Videos.Select(v => v.Id).ToArray();
-
-                // 2. We use the overload that compares the source (newPlaylist.Videos)
-                //    against a collection of simple keys (existingVideoIds).
-                YouTubeVideo[] newVideosToAdd = newPlaylist.Videos
-                    .ExceptBy(existingVideoIds, v => v.Id)
-                    .ToArray();
-
-                existingPlaylist.Videos.AddRange(newVideosToAdd);
-
-                _dbContext.YouTubeVideos.AddRange(newVideosToAdd);
-
-                // The 'existingPlaylist' is now updated and will be returned
-                //finalPlaylists.Add(existingPlaylist);
-            }
-
-            // 4. Save changes once per playlist after all additions
-            await _dbContext.SaveChangesAsync();
-        }
-
-
-        //YouTubePlaylist matchedPlaylist = MatchVideosToGames(schedule, fetchedPlaylist, playlistConfig);
-
-
-
-        List<YouTubePlaylist> finalPlaylists = new();
-        return finalPlaylists.ToArray();
-    }
-
     /// <summary>
     /// For each league x league playlist:
     /// - Check for new videos and save references for ones that might be highlights.
     /// - Set game links if ready.
     /// </summary>
-    public async Task FetchAndCacheNewVideos()
+    /// <returns>True if new videos were saved.</returns>
+    public async Task<bool> FetchAndCacheNewVideos()
     {
+        bool strictVideoCaching = _configuration.GetValue("StrictVideoCaching", false);
+
+        bool newVideosAdded = false;
         foreach (Leagues league in Leagues.GetAllLeagues())
         {
             List<PlaylistConfiguration> playlistConfigs = GetPlaylistConfigurations(league);
@@ -108,68 +30,101 @@ public class YouTubeRssService(
             {
                 YouTubePlaylist newPlaylist = FetchLatestVideosFromRssFeed(playlistConfig.Id, league);
 
-                DateTime daysForward = league.LeagueDateTimeNow.AddDays(_configuration.GetValue<int>("FetchDaysForwards"));
-                DateTime daysBack = league.LeagueDateTimeNow.AddDays(-_configuration.GetValue<int>("FetchDaysBack"));
+                DateTime daysForward = league.LeagueDateTimeNow.AddDays(_configuration.GetValue<int>("FetchDaysForwards")).Date;
+                DateTime daysBack = league.LeagueDateTimeNow.AddDays(-_configuration.GetValue<int>("FetchDaysBack")).Date;
 
                 // Discard any shorts or videos with unlikely dates
                 newPlaylist.Videos = newPlaylist.Videos
-                    .Where(x => !x.Link.Contains("/shorts/") && x.PublishedDateTimeLeague >= daysBack && x.PublishedDateTimeLeague < daysForward)
+                    .Where(x => !x.Link.Contains("/shorts/") && x.PublishedDateTimeLeague.Date >= daysBack && x.PublishedDateTimeLeague.Date < daysForward)
                     .ToList();
+
+                if (strictVideoCaching)
+                    newPlaylist.Videos = newPlaylist.Videos.Where(x => CheckIsHighlightAndSetAdditionalVideoInfo(x, playlistConfig)).ToList();
 
                 if (!newPlaylist.Videos.Any())
                     continue;
 
+                // Extract video information from title for highlight videos. Could filter by this instead, but then mislabelled or mismatched videos would be discarded too.
+                if (!strictVideoCaching)
+                    newPlaylist.Videos.ForEach(x => CheckIsHighlightAndSetAdditionalVideoInfo(x, playlistConfig));
+
                 YouTubePlaylist? existingPlaylist = await _dbContext.YouTubePlaylists
+                    .AsTracking()
                     .Include(x => x.Videos)
                     .FirstOrDefaultAsync(x => x.Id == playlistConfig.Id);
 
-                // **Scenario A: Playlist is NEW**
                 if (existingPlaylist is null)
                 {
                     _dbContext.YouTubePlaylists.Add(newPlaylist);
-                    // After saving, use the added entity for the final result
-                    //finalPlaylists.Add(newPlaylist);
+                    await _dbContext.SaveChangesAsync();
+
+                    newVideosAdded = true;
                 }
-                // **Scenario B: Playlist EXISTS**
                 else
                 {
-                    string[] existingVideoIds = existingPlaylist.Videos.Select(x => x.Id).ToArray();
+                    YouTubeVideo[] newVideosToAdd = existingPlaylist.Videos.GetNewItems(newPlaylist.Videos, x => x.Id);
+                    if (newVideosToAdd.Any())
+                    {
+                        existingPlaylist.Videos.AddRange(newVideosToAdd);
+                        await _dbContext.SaveChangesAsync();
 
-                    YouTubeVideo[] newVideosToAdd = newPlaylist.Videos
-                        .ExceptBy(existingVideoIds, x => x.Id)
-                        .ToArray();
-
-                    existingPlaylist.Videos.AddRange(newVideosToAdd);
-
-                    _dbContext.YouTubeVideos.AddRange(newVideosToAdd);
+                        newVideosAdded = true;
+                    }
                 }
-
-                await _dbContext.SaveChangesAsync();
             }
         }
+        return newVideosAdded;
     }
 
+    /// <summary>
+    /// For each league x league playlist:
+    /// - Set game links if ready.
+    /// </summary>
     public async Task AddYouTubeLinksToAllMatches()
     {
         foreach (Leagues league in Leagues.GetAllLeagues())
             await AddYouTubeLinksToMatches(league);
     }
 
-    public async Task AddYouTubeLinksToMatches(Leagues league)
+    /// <summary>
+    /// <inheritdoc cref="AddYouTubeLinksToAllMatches" />
+    /// </summary>
+    private async Task AddYouTubeLinksToMatches(Leagues league)
     {
         List<PlaylistConfiguration> playlistConfigs = GetPlaylistConfigurations(league);
         string[] playlistIds = playlistConfigs.Select(x => x.Id).ToArray();
 
+        // Filter videos by ones with Extracted fields populated to get highlight videos.
         YouTubePlaylist[] playlists = await _dbContext.YouTubePlaylists
-            .AsTracking()
-            .Include(x => x.Videos)
+            .Include(x => x.Videos.Where(y => !string.IsNullOrEmpty(y.ExtractedTitleTeamA) && !string.IsNullOrEmpty(y.ExtractedTitleTeamB)).OrderBy(y => y.PublishedDateUtc))
             .Where(x => x.LeagueId == league.Value && playlistIds.Contains(x.Id))
             .ToArrayAsync();
+        
+        YouTubeVideo[] videos = playlists.SelectMany(x => x.Videos)
+            .OrderBy(x => x.PublishedDateTimeLeague)
+            .ToArray();
+
+        //DateTime daysBack = league.LeagueDateTimeNow.AddDays(-_configuration.GetValue<int>("FetchDaysBack")).Date;
+        //if (videos.All(x => x.PublishedDateTimeLeague.Date >= daysBack))
+        if (!videos.Any())
+            return;
+
+        DateTime leagueTomorrow = league.LeagueDateTimeToday.AddDays(1);
+        DateTime minDateTimeLeague = videos.First().PublishedDateTimeLeague.Date;
+        DateTime maxDateTimeLeague = videos.Last().PublishedDateTimeLeague.AddDays(1).Date;
+        maxDateTimeLeague = leagueTomorrow > maxDateTimeLeague ? leagueTomorrow : maxDateTimeLeague;
 
         Game[] games = await _dbContext.Games
             .AsTracking()
-            .Where(x => x.LeagueId == league.Value && string.IsNullOrEmpty(x.YouTubeLink))
+            .Include(x => x.HomeTeam)
+            .Include(x => x.AwayTeam)
+            .Where(x => x.LeagueId == league.Value && string.IsNullOrEmpty(x.YouTubeLink)
+                && x.StartDateLeagueTime.Date >= minDateTimeLeague && x.StartDateLeagueTime.Date <= maxDateTimeLeague)
+            .OrderBy(x => x.StartDateUtc)
             .ToArrayAsync();
+
+        if (!games.Any())
+            return;
 
         bool saveChanges = false;
 
@@ -177,214 +132,40 @@ public class YouTubeRssService(
         {
             PlaylistConfiguration playlistConfig = playlistConfigs.First(x => x.Id == playlist.Id);
 
-            int requiredVideoTitleMatchPercentage = playlistConfig.RequiredVideoTitlePercentageMatch;
             foreach (Game game in games)
             {
-                if (!string.IsNullOrEmpty(game.YouTubeLink))
+                DateOnly gameDate = DateOnly.FromDateTime(game.StartDateLeagueTime);
+
+                List<YouTubeVideo> gameVideos = playlist.Videos
+                    .Where(x =>
+                        (game.HomeTeam.ToString().Contains(x.ExtractedTitleTeamA) || game.AwayTeam.ToString().Contains(x.ExtractedTitleTeamA))
+                        && (game.HomeTeam.ToString().Contains(x.ExtractedTitleTeamB) || game.AwayTeam.ToString().Contains(x.ExtractedTitleTeamB)))
+                    .ToList();
+                if (!gameVideos.Any())
                     continue;
 
-                // "NHL Highlights | Devils vs. Maple Leafs - October 21, 2025";
-                string expectedTitleA = $"NHL Highlights | {game.HomeTeam.Name} vs. {game.AwayTeam.Name} - {game.StartDateLeagueTime:MMMM d, yyyy}";
-                string expectedTitleB = $"NHL Highlights | {game.AwayTeam.Name} vs. {game.HomeTeam.Name} - {game.StartDateLeagueTime:MMMM d, yyyy}";
+                // Allow highlight from game day and the next day. Might be an issue for a back to back.
+                gameVideos = gameVideos.Where(x =>
+                    //(x.ExtractedTitleDate.Value == gameDate || x.ExtractedTitleDate.Value == gameDate.AddDays(1))
+                    (x.PublishedDateTimeLeague.Date == game.StartDateLeagueTime.Date || x.PublishedDateTimeLeague.Date == game.StartDateLeagueTime.Date.AddDays(1))).ToList();
 
-                foreach (YouTubeVideo video in playlist.Videos)
+                YouTubeVideo? gameVideo = gameVideos.FirstOrDefault();
+                if (gameVideo is not null)
                 {
-                    bool titleDateMatch1 = video.Title.Contains(game.StartDateLeagueTime.ToString("MMMM d, yyyy"));
-                    bool titleDateMatch2 = video.Title.Contains(game.StartDateLeagueTime.ToString("MMM d, yyyy"));
-                    bool titleDateMatch = titleDateMatch1 || titleDateMatch2;
-                    if (!titleDateMatch)
-                        continue;
-
-                    // Allow highlight from game day and the next day.
-                    bool publishDateMatch = video.PublishedDateTimeLeague >= game.StartDateLeagueTime && video.PublishedDateTimeLeague.AddDays(1) <= game.StartDateLeagueTime;
-                    if (!publishDateMatch)
-                        continue;
-
-                    int percentageMatchA = Fuzz.Ratio(expectedTitleA, video.Title);
-                    int percentageMatchB = Fuzz.Ratio(expectedTitleB, video.Title);
-                    bool titleMatch = percentageMatchA >= requiredVideoTitleMatchPercentage || percentageMatchB >= requiredVideoTitleMatchPercentage;
-                    if (titleMatch)
-                    {
-                        saveChanges = true;
-
-                        game.YouTubeLink = video.Link;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (saveChanges)
-        {
-            //_dbContext.Update();
-            await _dbContext.SaveChangesAsync();
-        }
-    }
-
-    /*public static YouTubePlaylist AddYouTubeLinksToMatches(
-        Schedule schedule,
-        YouTubePlaylist highlightPlaylist,
-        PlaylistConfiguration config)
-    {
-        Game[] games = schedule.GameDays
-            .SelectMany(x => x.Games)
-            .ToArray();
-
-        bool saveChanges = false;
-
-        int requiredVideoTitleMatchPercentage = config.RequiredVideoTitlePercentageMatch;
-        foreach (Game game in games)
-        {
-            if (!string.IsNullOrEmpty(game.YouTubeLink))
-                continue;
-
-            //string expectedTitleA = "NHL Highlights | Devils vs. Maple Leafs - October 21, 2025";
-            string expectedTitleA = $"NHL Highlights | {game.HomeTeam.Name} vs. {game.AwayTeam.Name} - {game.StartDateLeagueTime:MMMM d, yyyy}";
-            string expectedTitleB = $"NHL Highlights | {game.AwayTeam.Name} vs. {game.HomeTeam.Name} - {game.StartDateLeagueTime:MMMM d, yyyy}";
-
-            foreach (YouTubeVideo video in highlightPlaylist.Videos)
-            {
-                bool titleDateMatch1 = video.Title.Contains(game.StartDateLeagueTime.ToString("MMMM d, yyyy"));
-                bool titleDateMatch2 = video.Title.Contains(game.StartDateLeagueTime.ToString("MMM d, yyyy"));
-                bool titleDateMatch = titleDateMatch1 || titleDateMatch2;
-                if (!titleDateMatch)
-                    continue;
-
-                // Allow highlight from game day and the next day
-                bool publishDateMatch = video.PublishedDateTimeLeague >= game.StartDateLeagueTime && video.PublishedDateTimeLeague.AddDays(1) <= game.StartDateLeagueTime;
-                if (!titleDateMatch)
-                    continue;
-
-                int percentageMatchA = Fuzz.Ratio(expectedTitleA, video.Title);
-                int percentageMatchB = Fuzz.Ratio(expectedTitleB, video.Title);
-                bool titleMatch = percentageMatchA >= requiredVideoTitleMatchPercentage || percentageMatchB >= requiredVideoTitleMatchPercentage;
-                if (titleMatch)
-                {
+                    _logger.Debug("Game: {GameInfo} matches {VideoInfo}.", game.ToString(), gameVideo.ToString());
                     saveChanges = true;
 
-                    game.YouTubeLink = video.Link;
-                    break;
+                    game.YouTubeLink = gameVideo.Link;
                 }
             }
         }
 
         if (saveChanges)
-            _dbContext.SaveChangesAsync();
-
-        return highlightPlaylist;
-    }*/
-
-    /*public static YouTubePlaylist MatchVideosToGames(
-        Schedule schedule,
-        YouTubePlaylist highlightPlaylist,
-        PlaylistConfiguration config)
-    {
-        Game[] games = schedule.GameDays
-            .SelectMany(x => x.Games)
-            .ToArray();
-
-        foreach (Game game in games)
-        {
-            if (!string.IsNullOrEmpty(game.YouTubeLink))
-                continue;
-
-            // TODO: Remove .Where(x => x.Title.Contains())...
-            YouTubeVideo[] highlightVideos = highlightPlaylist.Videos.Where(x => x.Title.Contains(game.HomeTeam.Name) || x.Title.Contains(game.AwayTeam.Name)).ToArray();
-            foreach (YouTubeVideo video in highlightVideos)
-            {
-                int reasonablePublishDate = (video.PublishedDateTimeLeague.Date >= game.StartDateLeagueTime.Date && video.PublishedDateTimeLeague.Date < game.StartDateLeagueTime.AddDays(2).Date) ? 1 : 0;
-
-                // TODO: Replace {GameNumber}. ie. NHL Game {GameNumber} Highlights.
-                int titleMatch = config.TitleIdentifiers.Any(ti =>
-                {
-                    //video.Title.Contains
-                    //string newTitleIdentifier1 = ti.Replace("{GameNumber}", @"\d");
-                    //bool match = video.Title.Contains(newTitleIdentifier1);
-                    //return match;
-
-                    // Escape the pattern to treat it as a literal string
-                    string pattern;
-                    if (ti.Contains("{GameNumber}"))
-                    {
-                        pattern = Regex.Escape(ti);
-                        pattern = pattern.Replace(Regex.Escape("{GameNumber}"), @"\d{1}");
-                    }
-                    else
-                    {
-                        bool match2 = video.Title.Contains(ti);
-                        return match2;
-                    }
-
-                    // Use Regex.IsMatch with IgnoreCase for robustness
-                    bool match = Regex.IsMatch(video.Title, pattern, RegexOptions.IgnoreCase);
-                    return match;
-                }) ? 1 : 0;
-
-                // TODO: This doesn't account for spelling mistakes or minor alterations. ie. BC Lions vs. B.C. Lions.
-                int teamsMatch = config.TeamFormats.Any(tf =>
-                {
-                    string newTeamFormat1 = tf.Replace("{TeamNameA}", game.HomeTeam.Name)
-                        .Replace("{TeamNameB}", game.AwayTeam.Name)
-                        .Replace("{TeamCityA}", game.HomeTeam.City)
-                        .Replace("{TeamCityB}", game.AwayTeam.City);
-                    string newTeamFormat2 = tf.Replace("{TeamNameA}", game.AwayTeam.Name)
-                        .Replace("{TeamNameB}", game.HomeTeam.Name)
-                        .Replace("{TeamCityA}", game.AwayTeam.City)
-                        .Replace("{TeamCityB}", game.HomeTeam.City);
-
-                    bool match = video.Title.Contains(newTeamFormat1) || video.Title.Contains(newTeamFormat2);
-                    return match;
-                }) ? 1 : 0;
-
-                // TODO: Replace {WeekNumber}. ie. CFL Week {WeekNumber}.
-                int dateMatch = config.DateFormats.Any(df =>
-                {
-                    //string newDateFormat1 = df.Replace("{WeekNumber}", @"\d\d");
-
-                    //bool match = video.Title.Contains(game.StartDateUtc.ToString(df));
-                    //return match;
-
-                    //if (string.IsNullOrEmpty(df)) // Skip the "" (no date) format
-                    //    return false;
-
-                    string pattern;
-                    if (df.Contains("{WeekNumber}"))
-                    {
-                        // It's a placeholder format (e.g., "CFL Week {WeekNumber}")
-                        pattern = Regex.Escape(df);
-                        pattern = pattern.Replace(Regex.Escape("{WeekNumber}"), @"\d{1,2}"); // \d{1,2} = 1 or 2 digits
-                    }
-                    else
-                    {
-                        // It's a standard DateTime format (e.g., "MMMM d, yyyy" or "(M/d/yy)")
-                        string dateString = game.StartDateLeagueTime.ToString(df);
-                        pattern = Regex.Escape(dateString); // Escape it to handle '(', ')', etc.
-                    }
-
-                    bool match = Regex.IsMatch(video.Title, pattern, RegexOptions.IgnoreCase);
-                    return match;
-                }) ? 1 : 0;
-
-
-                int matchCount = reasonablePublishDate + titleMatch + teamsMatch + dateMatch;
-
-                var video1 = video;
-                var game1 = game;
-                var home1 = game.HomeTeam;
-                var away1 = game.AwayTeam;
-                if (matchCount >= config.RequiredVideoPartMatches)
-                {
-                    game.YouTubeLink = video.Link;
-                    break;
-                }
-            }
-        }
-
-        return highlightPlaylist;
-    }*/
+            await _dbContext.SaveChangesAsync();
+    }
 
     /// <summary>
-    /// Get 10 latest YouTube videos from playlist.
+    /// Get 15 latest YouTube videos from playlist.
     /// </summary>
     private static YouTubePlaylist FetchLatestVideosFromRssFeed(string playlistId, Leagues league)
     {
@@ -437,11 +218,31 @@ public class YouTubeRssService(
     }
 
     /// <summary>
-    /// Check to see if we need to check for new videos. ie. Are any games even missing highlights?
-    /// Using estimated end time for a game to try to calculate when we might want to check even more frequently?
+    /// If video matches playlist's video title pattern then set the extracted title values.
     /// </summary>
-    private int CalculateCheckInterval()
+    /// <returns>Is a highlight video.</returns>
+    private static bool CheckIsHighlightAndSetAdditionalVideoInfo(YouTubeVideo video, PlaylistConfiguration playlistConfig)
     {
-        return 0;
+        string highlightPattern = playlistConfig.TitlePattern;
+        Match highlightMatch = Regex.Match(video.Title, highlightPattern);
+        if (!highlightMatch.Success)
+            return false;
+
+        if (highlightMatch.Groups.TryGetValue("teamA", out Group? teamNameAGroup))
+            video.ExtractedTitleTeamA = teamNameAGroup.Value;
+
+        if (highlightMatch.Groups.TryGetValue("teamB", out Group? teamNameBGroup))
+            video.ExtractedTitleTeamB = teamNameBGroup.Value;
+
+        if (highlightMatch.Groups.TryGetValue("date", out Group? dateGroup) && DateOnly.TryParseExact(dateGroup.Value, playlistConfig.DateFormats.ToArray(), out DateOnly extractedDate))
+            video.ExtractedTitleDate = extractedDate;
+
+        if (highlightMatch.Groups.TryGetValue("identA", out Group? identifierAGroup))
+            video.ExtractedTitleIdentifierA = identifierAGroup.Value;
+
+        if (highlightMatch.Groups.TryGetValue("identB", out Group? identifierBGroup))
+            video.ExtractedTitleIdentifierB = identifierBGroup.Value;
+
+        return true;
     }
 }

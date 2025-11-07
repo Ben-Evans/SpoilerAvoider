@@ -3,28 +3,31 @@ using System.Net.Http.Json;
 
 namespace SpoilerFreeHighlights.Client.Pages;
 
-public partial class ScheduleMatchups
+public partial class ScheduleMatchups : IDisposable
 {
     [Inject] public required HttpClient HttpClient { get; set; }
+    [Inject] public required NavigationManager NavigationManager { get; set; }
     [Inject] public required IDialogService DialogService { get; set; }
     [Inject] private IServiceProvider Services { get; set; } = default!;
     [Inject] private ILogger<ScheduleMatchups> Logger { get; set; } = default!;
 
+    [Parameter] public string? PageRoute { get; set; }
     [Parameter] public Leagues[] SelectedLeagues { get; set; } = [ Leagues.All ];
 
     private Schedule? schedule;
 
     private LocalCacheService? LocalStorage;
     private UserPreference userPreferences = new();
+    private Timer? refreshTimer;
 
     protected override Task OnInitializedAsync() => InitializeSafely();
 
     protected static string GetTeamLogoLink(Team team)
     {
         if (team.LeagueId == Leagues.Nhl && team.ToString() == "Washington Capitals")
-            return $"/Resources/Team-Logos/{Leagues.Nhl.Name}/{team.Abbreviation}.svg";
+            return $"/Resources/Team-Logos/Resized/{Leagues.Nhl.Name}/{team.Abbreviation}.svg";
         else if (team.LeagueId == Leagues.Cfl)
-            return $"/Resources/Team-Logos/{Leagues.Cfl.Name}/{team.Abbreviation}.svg";
+            return $"/Resources/Team-Logos/Originals/{Leagues.Cfl.Name}/{team.Abbreviation}.svg";
 
         return team.LogoLink;
     }
@@ -45,7 +48,7 @@ public partial class ScheduleMatchups
         };
 
         // "https:www.youtube.com/watch?v=STBSUasnJ5s" => "https:www.youtube.com/embed/STBSUasnJ5s"
-        string ytLink = link.Replace("watch?v=", "embed/").Replace("youtube.com", "youtube-nocookie.com") + "?autoplay=1"; // &rel=0
+        string ytLink = link.Replace("watch?v=", "embed/").Replace("youtube.com", "youtube-nocookie.com") + "?autoplay=1&rel=0";
         DialogParameters dialogParameters = new()
         {
             { "YouTubeVideoLink", ytLink }
@@ -62,9 +65,19 @@ public partial class ScheduleMatchups
         // Ensure we are running in the browser context.
         if (OperatingSystem.IsBrowser())
         {
+            string pagePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+
+            Leagues[] allLeagues = Leagues.GetAllLeagues();
+            Leagues? league = allLeagues.FirstOrDefault(x => pagePath.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
+            if (league is not null)
+                SelectedLeagues = [ league ];
+
             LocalStorage = Services.GetRequiredService<LocalCacheService>();
             userPreferences = await LocalStorage.GetUserPreferences();
+
             await FetchScheduleData();
+
+            refreshTimer = new Timer(async _ => await RefreshData(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
         }
     }
 
@@ -88,5 +101,22 @@ public partial class ScheduleMatchups
         {
             Logger.LogError($"Error fetching schedule: {ex.Message}");
         }
+    }
+
+    private async Task RefreshData()
+    {
+        //Logger.LogDebug("Refreshing data: {Time}", DateTime.Now.ToString("HH:mm"));
+        Console.WriteLine($"Refreshing data: {DateTime.Now.ToString("HH:mm")}");
+
+        await FetchScheduleData();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+
+        GC.SuppressFinalize(this);
     }
 }

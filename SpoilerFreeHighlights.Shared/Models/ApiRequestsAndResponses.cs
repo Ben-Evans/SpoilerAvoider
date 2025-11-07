@@ -11,6 +11,7 @@ public class ScheduleQuery
 }
 
 // TODO: Handle all teams vs no teams
+// TODO: Handle possibly no longer existant teams being saved previously
 public class UserPreference
 {
     public UserPreference()
