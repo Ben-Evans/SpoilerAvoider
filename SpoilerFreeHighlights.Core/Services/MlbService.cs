@@ -1,4 +1,4 @@
-﻿namespace SpoilerFreeHighlights.Server.Services;
+namespace SpoilerFreeHighlights.Core.Services;
 
 public class MlbService(HttpClient _httpClient, AppDbContext _dbContext, IConfiguration _configuration)
     : LeagueService(_dbContext, _configuration)

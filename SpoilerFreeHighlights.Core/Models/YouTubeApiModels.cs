@@ -1,4 +1,4 @@
-﻿namespace SpoilerFreeHighlights.Server.Models;
+﻿namespace SpoilerFreeHighlights.Core.Models;
 
 #region YouTube API Models
 public class YouTubePlaylistResponse

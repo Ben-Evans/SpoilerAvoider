@@ -3,7 +3,7 @@ using System.ServiceModel.Syndication;
 using System.Text.RegularExpressions;
 using System.Xml;
 
-namespace SpoilerFreeHighlights.Server.Services;
+namespace SpoilerFreeHighlights.Core.Services;
 
 public class YouTubeRssService(
     AppDbContext _dbContext,

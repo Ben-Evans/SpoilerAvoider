@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.Text.Json;
 
-namespace SpoilerFreeHighlights.Server.Services;
+namespace SpoilerFreeHighlights.Core.Services;
 
 public static class FileService
 {

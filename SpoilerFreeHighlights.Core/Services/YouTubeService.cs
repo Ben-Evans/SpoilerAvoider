@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace SpoilerFreeHighlights.Server.Services;
+namespace SpoilerFreeHighlights.Core.Services;
 
 /*public class YouTubeService(HttpClient _httpClient, IConfiguration _configuration)
 {

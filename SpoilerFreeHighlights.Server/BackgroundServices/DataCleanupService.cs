@@ -1,4 +1,4 @@
-﻿namespace SpoilerFreeHighlights.Server.Services;
+namespace SpoilerFreeHighlights.Server.BackgroundServices;
 
 public class DataCleanupService(
     IServiceProvider _serviceProvider,

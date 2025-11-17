@@ -1,4 +1,4 @@
-﻿namespace SpoilerFreeHighlights.Server.Services;
+﻿namespace SpoilerFreeHighlights.Core.Services;
 
 /// <summary>
 /// This evening is 2025-10-26 @ 22:43 MTN, 2026-10-27 00:43 EST

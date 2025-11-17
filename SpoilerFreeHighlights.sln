@@ -1,13 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36414.22
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11205.157 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpoilerFreeHighlights.Server", "SpoilerFreeHighlights.Server\SpoilerFreeHighlights.Server.csproj", "{0695C455-864F-47C3-968D-0E32C27B2D0A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpoilerFreeHighlights.BlazorClient", "SpoilerFreeHighlights.BlazorClient\SpoilerFreeHighlights.BlazorClient.csproj", "{00A86F53-C48E-4ECD-AC79-DB01094610A8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpoilerFreeHighlights.Shared", "SpoilerFreeHighlights.Shared\SpoilerFreeHighlights.Shared.csproj", "{4B9A1FE2-D5AD-43A0-BA66-86843D2D2BAF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpoilerFreeHighlights.FunctionApp", "SpoilerFreeHighlights.FunctionApp\SpoilerFreeHighlights.FunctionApp.csproj", "{DA6F82CC-CA62-4CF2-BD8F-213E54C23219}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpoilerFreeHighlights.Core", "SpoilerFreeHighlights.Core\SpoilerFreeHighlights.Core.csproj", "{0791DC7C-EA9C-40FE-BFB6-4FC0BD3C09CA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +31,14 @@ Global
 		{4B9A1FE2-D5AD-43A0-BA66-86843D2D2BAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4B9A1FE2-D5AD-43A0-BA66-86843D2D2BAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4B9A1FE2-D5AD-43A0-BA66-86843D2D2BAF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA6F82CC-CA62-4CF2-BD8F-213E54C23219}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA6F82CC-CA62-4CF2-BD8F-213E54C23219}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA6F82CC-CA62-4CF2-BD8F-213E54C23219}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA6F82CC-CA62-4CF2-BD8F-213E54C23219}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0791DC7C-EA9C-40FE-BFB6-4FC0BD3C09CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0791DC7C-EA9C-40FE-BFB6-4FC0BD3C09CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0791DC7C-EA9C-40FE-BFB6-4FC0BD3C09CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0791DC7C-EA9C-40FE-BFB6-4FC0BD3C09CA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

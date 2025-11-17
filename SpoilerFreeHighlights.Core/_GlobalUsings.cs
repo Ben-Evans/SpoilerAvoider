@@ -1,7 +1,7 @@
 ﻿global using Microsoft.EntityFrameworkCore;
+global using Microsoft.Extensions.Configuration;
 global using Serilog;
 global using ILogger = Serilog.ILogger;
-global using SpoilerFreeHighlights.Core;
 global using SpoilerFreeHighlights.Core.Models;
 global using SpoilerFreeHighlights.Core.Persistence;
 global using SpoilerFreeHighlights.Core.Services;

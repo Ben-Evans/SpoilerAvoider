@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MudBlazor;
 using MudBlazor.Services;
+using SpoilerFreeHighlights.Server.BackgroundServices;
 using SpoilerFreeHighlights.Server.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,21 +29,13 @@ builder.Services.AddHttpClient("Default", client =>
 });
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Default"));
 
-//DbContextOptionsBuilder.EnableSensitiveDataLogging;
+builder.Services.SetupDatabase(builder.Configuration);
 
-builder.Services.AddDbContext<AppDbContext>(options => options
-    .UseSqlite($"Data Source={AppDbContext.DbPathWithFile}")
-    .EnableSensitiveDataLogging());
+builder.Services.AddServices();
 
-builder.Services.AddScoped<NhlService>();
-builder.Services.AddScoped<MlbService>();
-builder.Services.AddScoped<CflService>();
-builder.Services.AddScoped<LeaguesService>();
-//builder.Services.AddSingleton<YouTubeService>();
-builder.Services.AddScoped<YouTubeRssService>();
-//builder.Services.AddHostedService<DataCleanupService>();
 //builder.Services.AddHostedService<LeagueScheduleRefreshService>();
-builder.Services.AddHostedService<YouTubeRssRefreshService>();
+//builder.Services.AddHostedService<YouTubeRssRefreshService>();
+//builder.Services.AddHostedService<DataCleanupService>();
 
 builder.Services.AddMudServices();
 
@@ -72,7 +65,6 @@ app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode()
     //.AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(SpoilerFreeHighlights.BlazorClient._Imports).Assembly);
-
 
 app.MapGet("/api/reset", async (AppDbContext dbContext) =>
 {
@@ -148,39 +140,7 @@ app.MapPost("/api/GetGameDays", async (
         : Results.Problem("Failed to deserialize external API response.", statusCode: 500);
 });
 
-// Seed DB if it doesn't exist already.
-Directory.CreateDirectory(AppDbContext.DbPath);
-using (IServiceScope scope = app.Services.CreateScope())
-{
-    AppDbContext dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    dbContext.Database.EnsureCreated(); // .Migrate; -- If adding migrations clear database.
-
-    bool leaguesSeeded = dbContext.Leagues.Any();
-    if (!leaguesSeeded)
-    {
-        Log.Logger.Information($"Seeding {nameof(Leagues)} into the database...");
-        dbContext.Leagues.AddRange(
-        [
-            new League { Id = Leagues.Nhl, Name = Leagues.Nhl.Name },
-            new League { Id = Leagues.Mlb, Name = Leagues.Mlb.Name },
-            new League { Id = Leagues.Cfl, Name = Leagues.Cfl.Name }
-        ]);
-        dbContext.SaveChanges();
-        Log.Logger.Information($"{nameof(Leagues)} seeded successfully.");
-    }
-
-    bool nhlTeamsSeeded = dbContext.Teams.Any(x => x.LeagueId == Leagues.Nhl);
-    if (!nhlTeamsSeeded)
-        await NhlService.SeedTeams(dbContext, scope.ServiceProvider.GetRequiredService<IHttpClientFactory>().CreateClient());
-
-    bool mlbTeamsSeeded = dbContext.Teams.Any(x => x.LeagueId == Leagues.Mlb);
-    if (!mlbTeamsSeeded)
-        await MlbService.SeedTeams(dbContext, scope.ServiceProvider.GetRequiredService<IHttpClientFactory>().CreateClient());
-
-    bool cflTeamsSeeded = dbContext.Teams.Any(x => x.LeagueId == Leagues.Cfl);
-    if (!cflTeamsSeeded)
-        await CflService.SeedTeams(dbContext);
-}
+await app.Services.SeedDatabase();
 
 try
 {

@@ -1,4 +1,4 @@
-﻿namespace SpoilerFreeHighlights.Server.Models;
+﻿namespace SpoilerFreeHighlights.Core.Models;
 
 // Based on appsettings.json structure
 public static class YouTubeRssConstants

@@ -1,4 +1,4 @@
-﻿namespace SpoilerFreeHighlights.Server.Models;
+﻿namespace SpoilerFreeHighlights.Core.Models;
 
 public record NhlApiSchedule(
     string NextStartDate,

@@ -1,4 +1,4 @@
-﻿namespace SpoilerFreeHighlights.Server.Persistence;
+﻿namespace SpoilerFreeHighlights.Core.Persistence;
 
 using Microsoft.EntityFrameworkCore;
 

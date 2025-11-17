@@ -1,4 +1,4 @@
-﻿namespace SpoilerFreeHighlights.Server.Models;
+﻿namespace SpoilerFreeHighlights.Core.Models;
 
 #region MLB Schedule API Models
 public class MlbApiSchedule
