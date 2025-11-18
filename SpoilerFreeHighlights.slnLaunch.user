@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "Blazor Hosted",
+    "Projects": [
+      {
+        "Path": "SpoilerFreeHighlights.Server\\SpoilerFreeHighlights.Server.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      },
+      {
+        "Path": "SpoilerFreeHighlights.BlazorClient\\SpoilerFreeHighlights.BlazorClient.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      }
+    ]
+  }
+]

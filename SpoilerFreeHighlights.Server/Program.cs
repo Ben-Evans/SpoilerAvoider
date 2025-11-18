@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using MudBlazor;
-using MudBlazor.Services;
+using SpoilerFreeHighlights.Core.Endpoints;
 using SpoilerFreeHighlights.Server.BackgroundServices;
-using SpoilerFreeHighlights.Server.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,38 +10,39 @@ Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .CreateLogger();
 
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveWebAssemblyComponents();
-    //.AddInteractiveServerComponents();
+builder.Services.AddRazorComponents();
 
 builder.Host.UseSerilog();
 
 builder.Services.Configure<YouTubeSettings>(
     builder.Configuration.GetSection(YouTubeRssConstants.YouTubeSectionName));
 
-// Register HttpClient for Server and BlazorClient DI.
 builder.Services.AddHttpClient("Default", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration.GetValue("BaseAddress", "https://localhost:7137/"));
+    client.BaseAddress = new Uri(builder.Configuration.GetValue("BaseAddress", "https://localhost:7137"));
 });
-builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Default"));
 
 builder.Services.SetupDatabase(builder.Configuration);
 
 builder.Services.AddServices();
 
-//builder.Services.AddHostedService<LeagueScheduleRefreshService>();
-//builder.Services.AddHostedService<YouTubeRssRefreshService>();
-//builder.Services.AddHostedService<DataCleanupService>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: "AllowBlazorClient", policy =>
+    {
+        policy.WithOrigins(builder.Configuration.GetValue("BlazorClientBaseAddress", "https://localhost:7107"))
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 
-builder.Services.AddMudServices();
-
-//MudGlobal.UnhandledExceptionHandler = (exception) => Log.Logger.Error(exception, "Globally Caught Exeption");
+builder.Services.AddHostedService<LeagueScheduleRefreshService>();
+builder.Services.AddHostedService<YouTubeRssRefreshService>();
+builder.Services.AddHostedService<DataCleanupService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseWebAssemblyDebugging();
@@ -56,84 +55,24 @@ else
 }
 
 app.UseSerilogRequestLogging();
+app.UseCors("AllowBlazorClient");
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveWebAssemblyRenderMode()
-    //.AddInteractiveServerRenderMode()
-    .AddAdditionalAssemblies(typeof(SpoilerFreeHighlights.BlazorClient._Imports).Assembly);
 
-app.MapGet("/api/reset", async (AppDbContext dbContext) =>
+app.MapGet("/api/reset", (AppDbContext dbContext) => AllEndpoints.ResetData(dbContext));
+
+app.MapGet("/api/test/s", (LeaguesService leaguesService) => AllEndpoints.TestScheduleService(leaguesService));
+
+app.MapGet("/api/test/yt", (YouTubeRssService youTubeRssService) => AllEndpoints.TestYouTubeService(youTubeRssService));
+
+app.MapGet("/api/GetTeams", (AppDbContext dbContext) => AllEndpoints.GetTeams(dbContext));
+
+app.MapPost("/api/GetGameDays", async (NhlService nhlService, MlbService mlbService, CflService cflService, [FromBody] ScheduleQuery scheduleQuery) =>
 {
-    await dbContext.YouTubeVideos.ExecuteDeleteAsync();
-    await dbContext.YouTubePlaylists.ExecuteDeleteAsync();
-    await dbContext.Games.ExecuteDeleteAsync();
-    //await dbContext.Teams.ExecuteDeleteAsync();
-    //await dbContext.Leagues.ExecuteDeleteAsync();
-    await dbContext.SaveChangesAsync();
-});
-
-app.MapGet("/api/test/s", async (LeaguesService leaguesService) =>
-{
-    await leaguesService.FetchAndCacheScheduledGames();
-});
-
-app.MapGet("/api/test/yt", async (YouTubeRssService youTubeRssService) =>
-{
-    await youTubeRssService.FetchAndCacheNewVideos();
-
-    await youTubeRssService.AddYouTubeLinksToAllMatches();
-});
-
-app.MapGet("/api/GetTeams", async (AppDbContext dbContext) =>
-{
-    return await dbContext.Teams.ToArrayAsync();
-});
-
-app.MapPost("/api/GetGameDays", async (
-    NhlService nhlService,
-    MlbService mlbService,
-    CflService cflService,
-    [FromBody] ScheduleQuery scheduleQuery) =>
-{
-    Dictionary<Leagues, LeagueService> services = new()
-    {
-        { Leagues.Nhl, nhlService },
-        { Leagues.Mlb, mlbService },
-        { Leagues.Cfl, cflService }
-    };
-
-    if (scheduleQuery.Leagues is null || scheduleQuery.Leagues.Length == 0 || scheduleQuery.Leagues.Contains(Leagues.All))
-        scheduleQuery.Leagues = services.Keys.ToArray();
-
-    List<Schedule> schedules = new();
-    foreach (Leagues league in scheduleQuery.Leagues)
-    {
-        LeagueService leagueService = services[league];
-
-        Schedule? leagueSchedule = await leagueService.GetScheduleForThisWeek(scheduleQuery.UserPreferences);
-        if (leagueSchedule is null)
-            return Results.Problem("Failed to retrieve data from external API.", statusCode: 500);
-
-        schedules.Add(leagueSchedule);
-    }
-
-    Schedule allSchedule = new()
-    {
-        League = Leagues.All,
-        GameDays = schedules
-            .SelectMany(x => x.GameDays)
-            .GroupBy(x => x.DateLeague)
-            .Select(x => new GameDay
-            {
-                DateLeague = x.Key,
-                Games = x.SelectMany(y => y.Games).OrderBy(y => y.StartDateUtc).ToList()
-            })
-            .ToList()
-    };
+    Schedule? allSchedule = await AllEndpoints.GetGameDays(nhlService, mlbService, cflService, scheduleQuery);
 
     return allSchedule is not null
         ? Results.Ok(allSchedule)

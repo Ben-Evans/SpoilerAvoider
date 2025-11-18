@@ -1,4 +1,3 @@
-using MudBlazor;
 using System.Net.Http.Json;
 
 namespace SpoilerFreeHighlights.BlazorClient.Pages;
@@ -11,7 +10,7 @@ public partial class ScheduleMatchups : IDisposable
     [Inject] private IServiceProvider Services { get; set; } = default!;
     [Inject] private ILogger<ScheduleMatchups> Logger { get; set; } = default!;
 
-    [Parameter] public string? PageRoute { get; set; }
+    [Parameter] public string? PageRoute { get; set; } = string.Empty;
     [Parameter] public Leagues[] SelectedLeagues { get; set; } = [ Leagues.All ];
 
     private Schedule? schedule;
@@ -20,7 +19,17 @@ public partial class ScheduleMatchups : IDisposable
     private UserPreference userPreferences = new();
     private Timer? refreshTimer;
 
-    protected override Task OnInitializedAsync() => InitializeSafely();
+    private string? previousPageRoute;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.Equals(previousPageRoute, PageRoute, StringComparison.OrdinalIgnoreCase))
+        {
+            previousPageRoute = PageRoute;
+
+            await InitializeSafely();
+        }
+    }
 
     protected static string GetTeamLogoLink(Team team)
     {
@@ -62,23 +71,19 @@ public partial class ScheduleMatchups : IDisposable
     /// </summary>
     private async Task InitializeSafely()
     {
-        // Ensure we are running in the browser context.
-        if (OperatingSystem.IsBrowser())
-        {
-            string pagePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        string pagePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
 
-            Leagues[] allLeagues = Leagues.GetAllLeagues();
-            Leagues? league = allLeagues.FirstOrDefault(x => pagePath.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
-            if (league is not null)
-                SelectedLeagues = [ league ];
+        Leagues[] allLeagues = Leagues.GetAllLeagues();
+        Leagues? league = allLeagues.FirstOrDefault(x => pagePath.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
+        if (league is not null)
+            SelectedLeagues = [ league ];
 
-            LocalStorage = Services.GetRequiredService<LocalCacheService>();
-            userPreferences = await LocalStorage.GetUserPreferences();
+        LocalStorage = Services.GetRequiredService<LocalCacheService>();
+        userPreferences = await LocalStorage.GetUserPreferences();
 
-            await FetchScheduleData();
+        await FetchScheduleData();
 
-            refreshTimer = new Timer(async _ => await RefreshData(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
-        }
+        refreshTimer = new Timer(async _ => await RefreshData(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
     }
 
     /// <summary>

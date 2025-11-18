@@ -7,4 +7,3 @@ global using SpoilerFreeHighlights.Core.Persistence;
 global using SpoilerFreeHighlights.Core.Services;
 global using SpoilerFreeHighlights.Shared.Enums;
 global using SpoilerFreeHighlights.Shared.Models;
-global using SpoilerFreeHighlights.Shared.Utility;
