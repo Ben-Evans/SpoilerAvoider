@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Options;
-
-namespace SpoilerFreeHighlights.Core.Services;
+﻿namespace SpoilerFreeHighlights.Core.Services;
 
 public class LeaguesService(
     NhlService _nhlService,

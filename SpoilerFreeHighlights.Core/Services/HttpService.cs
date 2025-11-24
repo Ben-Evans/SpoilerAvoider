@@ -11,16 +11,26 @@ public static class HttpService
     public static async Task<T?> FetchContent<T>(this HttpClient httpClient, string httpUrl, [CallerMemberName] string caller = "")
     {
         _logger.Information("Fetching {Url}...", httpUrl);
-        HttpResponseMessage response = await httpClient.GetAsync(httpUrl);
-        if (!response.IsSuccessStatusCode)
+
+        try
+        {
+            HttpResponseMessage response = await httpClient.GetAsync(httpUrl);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.Error("Failed to fetch from {Url} for {Caller}.", httpUrl, caller);
+                return default;
+            }
+            _logger.Information("Fetched successfully.");
+
+            string jsonData = await response.Content.ReadAsStringAsync();
+
+            return JsonSerializer.Deserialize<T>(jsonData, JsonOptions);
+        }
+        catch (Exception)
         {
             _logger.Error("Failed to fetch from {Url} for {Caller}.", httpUrl, caller);
-            return default;
         }
-        _logger.Information("Fetched successfully.");
 
-        string jsonData = await response.Content.ReadAsStringAsync();
-
-        return JsonSerializer.Deserialize<T>(jsonData, JsonOptions);
+        return default;
     }
 }

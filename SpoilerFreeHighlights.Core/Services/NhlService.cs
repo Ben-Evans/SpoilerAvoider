@@ -20,6 +20,11 @@ public class NhlService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
         DateOnly date = DateOnly.FromDateTime(new DateTime(DateTime.Now.Year, 10, 21));
 
         NhlApiSchedule? nhlApiSchedule = await FetchScheduleDataFromNhlApi(date, httpClient);
+        if (nhlApiSchedule is null)
+        {
+            _logger.Error("Failed to fetch NHL schedule data from the NHL API. Cannot seed teams.");
+            return;
+        }
 
         Schedule schedule = ConvertFromNhlApiToUsableModels(nhlApiSchedule);
 
@@ -37,7 +42,7 @@ public class NhlService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
 
         _logger.Information("Seeding NHL teams into the database...");
         dbContext.Teams.AddRange(nhlTeams);
-        dbContext.SaveChanges();
+        await dbContext.SaveChangesAsync();
         _logger.Information("NHL teams seeded successfully.");
     }
 

@@ -25,6 +25,12 @@ Spoiler Avoider
             CloseButton = true
         };
 
+
+        // TODO: Refresh page if dialog is not cancelled.
+        /*
+            DialogResult? result = await dialog.Result;
+            if (result is not null && !result.Canceled)
+                await InitializeSafely();*/
         return DialogService.ShowAsync<Settings>("Settings", dialogOptions);
     }
 }

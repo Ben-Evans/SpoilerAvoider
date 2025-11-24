@@ -1,0 +1,328 @@
+﻿@page "/admin/manage-appsettings"
+@page "/admin/appsettings"
+
+@using System.Text.RegularExpressions
+@using System.ComponentModel.DataAnnotations
+@using System.Threading.Tasks
+@using System.Text.Json
+
+@if (IsInitialized)
+{
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+        <div Class="d-flex justify-space-between align-center mb-4">
+            <MudText Typo="Typo.h4">League Configuration Manager</MudText>
+
+            <MudButtonGroup Variant="Variant.Filled" Color="Color.Primary">
+                @* <MudButton ButtonType="ButtonType.Button" OnClick="ExportLeagueConfigurations">Export League Configs</MudButton>
+                <MudButton ButtonType="ButtonType.Button" OnClick="ImportLeagueConfigurations">Import League Configs</MudButton> *@
+                <MudButton ButtonType="ButtonType.Button" OnClick="AddLeagueConfiguration">Add New League Config</MudButton>
+            </MudButtonGroup>
+        </div>
+
+        @foreach (var (leagueConfig, leagueIndex) in AppSettings.LeagueConfigurations.Select((c, i) => (c, i)))
+        {
+            <MudPaper Class="pa-4 mb-4">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <div Class="d-flex justify-space-between align-center mb-4">
+                            @* <MudText Typo="Typo.h5">@Leagues.FromValue(leagueConfig.LeagueId).Name</MudText> *@
+                            
+                            <MudSelect @bind-Value="leagueConfig.LeagueId" OpenIcon="@Icons.Material.Filled.Sports" AdornmentColor="Color.Secondary" Class="pr-4">
+                                @foreach (Leagues league in Leagues.GetAllLeagues())
+                                {
+                                    <MudSelectItem Value="@league.Value">@league.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                            
+                            <MudButton ButtonType="ButtonType.Button" OnClick="@(() => RemoveLeagueConfiguration(leagueIndex))" Color="Color.Secondary" Variant="Variant.Filled">Remove League Config</MudButton>
+                        </div>
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudSelect @bind-Value="leagueConfig.SelectPlaylistType" Label="Select Playlist Type" Variant="Variant.Outlined">
+                            <MudSelectItem Value="@("All")">All</MudSelectItem>
+                            <MudSelectItem Value="@("Single")">Single</MudSelectItem>
+                            <MudSelectItem Value="@("First")">First</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <MudText Typo="Typo.h6" Class="mb-3">Playlists</MudText>
+
+                @foreach (var (playlist, playlistIndex) in leagueConfig.Playlists.Select((p, i) => (p, i)))
+                {
+                    <MudExpansionPanels Class="mb-3">
+                        <MudExpansionPanel>
+                            <TitleContent>
+                                <div class="d-flex align-center justify-space-between" style="width: 100%;">
+                                    <MudText>@(string.IsNullOrEmpty(playlist.Name) ? "New Playlist" : playlist.Name)</MudText>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => RemovePlaylist(leagueIndex, playlistIndex))" />
+                                </div>
+                            </TitleContent>
+                            <ChildContent>
+                                <MudGrid>
+                                    <MudItem xs="12" md="6">
+                                        <MudTextField @bind-Value="playlist.Id"
+                                                      Label="Playlist ID"
+                                                      Variant="Variant.Outlined"
+                                                      Adornment="Adornment.End"
+                                                      AdornmentIcon="@Icons.Material.Filled.AutoAwesome"
+                                                      OnAdornmentClick="@(() => FetchAndAutoPopulatePlaylistMetaData(leagueIndex, playlistIndex))" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="6">
+                                        <MudTextField @bind-Value="playlist.Name" Label="Name" Variant="Variant.Outlined" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="6">
+                                        <MudTextField @bind-Value="playlist.ChannelName" Label="Channel Name" Variant="Variant.Outlined" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudNumericField @bind-Value="playlist.RequiredVideoPartMatches" Label="Required Part Matches" Variant="Variant.Outlined" Disabled="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="3">
+                                        <MudNumericField @bind-Value="playlist.RequiredVideoTitlePercentageMatch" Label="Required Title Match" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Percent" Disabled="true" />
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <MudTextField @bind-Value="playlist.TitlePattern" Label="Title Pattern (Regex)" Variant="Variant.Outlined" Lines="3" AutoGrow />
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <MudTextField @bind-Value="playlist.Comment" Label="Comment (Optional)" Variant="Variant.Outlined" Lines="3" AutoGrow />
+                                    </MudItem>
+
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Title Identifiers</MudText>
+                                        @foreach (var (identifier, idIndex) in playlist.TitleIdentifiers.Select((id, i) => (id, i)))
+                                        {
+                                            <div class="d-flex gap-2 mb-2">
+                                                <MudTextField @bind-Value="identifier.Value"
+                                                              Variant="Variant.Outlined"
+                                                              Class="flex-grow-1" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                                                               Color="Color.Error"
+                                                               OnClick="@(() => playlist.TitleIdentifiers.RemoveAt(idIndex))" />
+                                            </div>
+                                        }
+                                        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                                                   Variant="Variant.Outlined"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => playlist.TitleIdentifiers.Add(new VideoTitleIdentifier()))">
+                                            Add Identifier
+                                        </MudButton>
+                                    </MudItem>
+
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Team Formats</MudText>
+                                        @foreach (var (format, fmtIndex) in playlist.TeamFormats.Select((f, i) => (f, i)))
+                                        {
+                                            <div class="d-flex gap-2 mb-2">
+                                                <MudTextField @bind-Value="format.Value"
+                                                              Variant="Variant.Outlined"
+                                                              Class="flex-grow-1" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                                                               Color="Color.Error"
+                                                               OnClick="@(() => playlist.TeamFormats.RemoveAt(fmtIndex))" />
+                                            </div>
+                                        }
+                                        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                                                   Variant="Variant.Outlined"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => playlist.TeamFormats.Add(new VideoTitleTeamFormat()))">
+                                            Add Format
+                                        </MudButton>
+                                    </MudItem>
+
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Date Formats</MudText>
+                                        @foreach (var (dateFormat, dfIndex) in playlist.DateFormats.Select((d, i) => (d, i)))
+                                        {
+                                            <div class="d-flex gap-2 mb-2">
+                                                <MudTextField @bind-Value="dateFormat.Value"
+                                                              Variant="Variant.Outlined"
+                                                              Class="flex-grow-1" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Remove"
+                                                               Color="Color.Error"
+                                                               OnClick="@(() => playlist.DateFormats.RemoveAt(dfIndex))" />
+                                            </div>
+                                        }
+                                        <MudButton StartIcon="@Icons.Material.Filled.Add"
+                                                   Variant="Variant.Outlined"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => playlist.DateFormats.Add(new VideoTitleDateFormat()))">
+                                            Add Format
+                                        </MudButton>
+                                    </MudItem>
+                                </MudGrid>
+                            </ChildContent>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                }
+
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => AddPlaylist(leagueIndex))">Add Playlist Config</MudButton>
+            </MudPaper>
+        }
+
+        <MudPaper Class="pa-4 d-flex gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveConfiguration">Save</MudButton>
+            <MudButton Variant="Variant.Outlined" OnClick="CancelChanges">Cancel</MudButton>
+        </MudPaper>
+    </MudContainer>
+}
+
+@code {
+    [Inject] public required HttpClient HttpClient { get; set; }
+    [Inject] public required NavigationManager NavigationManager { get; set; }
+    [Inject] public required IDialogService DialogService { get; set; }
+    [Inject] public required IJSRuntime JSRuntime { get; set; }
+    [Inject] public required ISnackbar Snackbar { get; set; }
+
+    protected LeagueConfigurationDto AppSettings { get; set; }
+    protected bool IsInitialized { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchAppSettings();
+
+        IsInitialized = true;
+    }
+
+    protected async Task FetchAndAutoPopulatePlaylistMetaData(int leagueIndex, int playlistIndex)
+    {
+        LeagueConfiguration leagueConfig = AppSettings.LeagueConfigurations[leagueIndex];
+        PlaylistConfiguration playlist = leagueConfig.Playlists[playlistIndex];
+        string playlistId = playlist.Id.Trim();
+
+        if (!string.IsNullOrEmpty(playlistId))
+        {
+            try
+            {
+                HttpResponseMessage? response = await HttpClient.GetAsync($"/api/FetchPlaylistInfo?playlistId={playlistId}&leagueId={leagueConfig.LeagueId}");
+                if (response.IsSuccessStatusCode)
+                {
+                    YouTubePlaylist youtubePlaylist = await response.Content.ReadFromJsonAsync<YouTubePlaylist>();
+
+                    playlist.Id = youtubePlaylist.Id;
+                    playlist.Name = youtubePlaylist.Name;
+                    playlist.ChannelName = youtubePlaylist.ChannelName;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Logger.LogError($"Error fetching schedule: {ex.Message}");
+                Console.WriteLine($"Error fetching schedule: {ex.Message}");
+            }
+        }
+    }
+
+    /* Current Issues (workaround with export / import models?):
+     * - Ids get serialized
+     * - This string:
+     *   - ^(?<identA>NHL (?:|Game )Highlights) \\| (?<teamA>.+?) vs\\. (?<teamB>.+?) - (?<date>\\w+ \\d{1,2}, \\d{4})$
+     *   becomes:
+     *   - ^(?\u003CidentA\u003ENHL (?:|Game )Highlights) \\\\| (?\u003CteamA\u003E.\u002B?) vs\\\\. (?\u003CteamB\u003E.\u002B?) - (?\u003Cdate\u003E\\\\w\u002B \\\\d{1,2}, \\\\d{4})$
+     */
+    private async Task ExportLeagueConfigurations()
+    {
+        try
+        {
+            string json = JsonSerializer.Serialize(
+                AppSettings,
+                new JsonSerializerOptions { WriteIndented = true });
+        
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", json);
+
+            Snackbar.Add("Configuration copied to clipboard", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to copy: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ImportLeagueConfigurations()
+    {
+        DialogOptions dialogOptions = new()
+        {
+            CloseOnEscapeKey = true,
+            BackgroundClass = "dialog-popup",
+            NoHeader = true,
+            FullWidth = true,
+            MaxWidth = MaxWidth.Large,
+            CloseButton = true
+        };
+
+        IDialogReference dialog = await DialogService.ShowAsync<LeagueConfigurationImporter>("Import League Configurations", dialogOptions);
+
+        DialogResult? result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+        {
+            LeagueConfigurationDto? importedConfigs = result.Data as LeagueConfigurationDto;
+
+            AppSettings.LeagueConfigurations = importedConfigs.LeagueConfigurations;
+        }
+    }
+
+    private void AddLeagueConfiguration()
+    {
+        AppSettings.LeagueConfigurations.Add(new LeagueConfiguration() { LeagueId = Leagues.Nhl, SelectPlaylistType = "All" });
+    }
+
+    private void RemoveLeagueConfiguration(int leagueIndex)
+    {
+        AppSettings.LeagueConfigurations.RemoveAt(leagueIndex);
+    }
+
+    private void AddPlaylist(int leagueIndex)
+    {
+        AppSettings.LeagueConfigurations[leagueIndex].Playlists.Add(new PlaylistConfiguration());
+    }
+
+    private void RemovePlaylist(int leagueIndex, int playlistIndex)
+    {
+        AppSettings.LeagueConfigurations[leagueIndex].Playlists.RemoveAt(playlistIndex);
+    }
+
+    private async Task SaveConfiguration()
+    {
+        try
+        {
+            HttpResponseMessage? response = await HttpClient.PutAsJsonAsync("/api/UpdateAppSettings", AppSettings);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Successfully updated appsettings!", Severity.Success);
+
+                AppSettings = await response.Content.ReadFromJsonAsync<LeagueConfigurationDto>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Failed to update appsettings!", Severity.Error);
+
+            Console.WriteLine($"Error persisting settings: {ex.Message}");
+        }
+    }
+
+    private void CancelChanges()
+    {
+        NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true);
+    }
+
+    private async Task FetchAppSettings()
+    {
+        try
+        {
+            HttpResponseMessage? response = await HttpClient.GetAsync("/api/GetAppSettings");
+            if (response.IsSuccessStatusCode)
+                AppSettings = await response.Content.ReadFromJsonAsync<LeagueConfigurationDto>();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Failed to retrieve appsettings!", Severity.Error);
+
+            // Logger.LogError($"Error fetching schedule: {ex.Message}");
+            Console.WriteLine($"Error fetching appsettings: {ex.Message}");
+        }
+    }
+}

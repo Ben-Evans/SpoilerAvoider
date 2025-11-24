@@ -1,3 +1,5 @@
+using SpoilerFreeHighlights.Core.Models;
+
 namespace SpoilerFreeHighlights.Core.Services;
 
 public class MlbService(HttpClient _httpClient, AppDbContext _dbContext, IConfiguration _configuration)
@@ -65,6 +67,11 @@ public class MlbService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
     public static async Task SeedTeams(AppDbContext dbContext, HttpClient httpClient)
     {
         MlbApiTeamResponse? mlbApiTeams = await FetchTeamDataFromMlbApi(httpClient);
+        if (mlbApiTeams is null)
+        {
+            _logger.Error("Failed to fetch MLB team data from the MLB API. Cannot seed teams.");
+            return;
+        }
 
         Team[] mlbTeams = mlbApiTeams.Teams
             .Select(x => new Team
@@ -81,7 +88,7 @@ public class MlbService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
 
         _logger.Information("Seeding MLB teams into the database...");
         dbContext.Teams.AddRange(mlbTeams);
-        dbContext.SaveChanges();
+        await dbContext.SaveChangesAsync();
         _logger.Information("MLB teams seeded successfully.");
     }
 

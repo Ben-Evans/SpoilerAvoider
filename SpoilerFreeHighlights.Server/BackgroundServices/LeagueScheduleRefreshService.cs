@@ -1,4 +1,6 @@
-﻿namespace SpoilerFreeHighlights.Server.BackgroundServices;
+﻿using SpoilerFreeHighlights.Core.Services.BackgroundServices;
+
+namespace SpoilerFreeHighlights.Server.BackgroundServices;
 
 public class LeagueScheduleRefreshService(
     IServiceProvider _serviceProvider,
@@ -17,7 +19,7 @@ public class LeagueScheduleRefreshService(
         {
             try
             {
-                await FetchAndCacheScheduledGames();
+                await LeagueScheduleRefresh.FetchAndCacheScheduledGames(_serviceProvider);
             }
             catch (Exception ex)
             {
@@ -27,14 +29,5 @@ public class LeagueScheduleRefreshService(
         }
 
         _logger.Information("{ServiceName} complete.", nameof(LeagueScheduleRefreshService));
-    }
-
-    private Task FetchAndCacheScheduledGames()
-    {
-        // Because Background Services are singletons, we must create a new scope to get a scoped service like DbContext.
-        using IServiceScope scope = _serviceProvider.CreateScope();
-        LeaguesService leaguesService = scope.ServiceProvider.GetRequiredService<LeaguesService>();
-
-        return leaguesService.FetchAndCacheScheduledGames();
     }
 }

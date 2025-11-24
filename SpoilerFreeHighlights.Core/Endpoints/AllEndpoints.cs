@@ -1,4 +1,6 @@
-﻿namespace SpoilerFreeHighlights.Core.Endpoints;
+﻿using System.Net.Http;
+
+namespace SpoilerFreeHighlights.Core.Endpoints;
 
 public static class AllEndpoints
 {
@@ -52,16 +54,96 @@ public static class AllEndpoints
         return allSchedule;
     }
 
+    public static YouTubePlaylist FetchPlaylistInfo(HttpClient httpClient, string playlistId, int leagueId)
+    {
+        Leagues league = Leagues.FromValue(leagueId);
+        YouTubePlaylist playlist = YouTubeService.FetchLatestVideosFromRssFeed(playlistId, league);
+        playlist.Videos = [];
+        return playlist;
+    }
+
+    public static async Task<LeagueConfigurationDto> GetAppSettings(AppDbContext dbContext)
+    {
+        return new() { LeagueConfigurations = await dbContext.LeagueConfigurations.ToListAsync() };
+    }
+
+    public static async Task<LeagueConfigurationDto> UpdateAppSettings(AppDbContext dbContext, LeagueConfigurationDto updatedLeagueConfigurationDto)
+    {
+        List<LeagueConfiguration> oldLeagueConfigs = await dbContext.LeagueConfigurations
+            .AsTracking()
+            .ToListAsync();
+
+        ComparisonResult<LeagueConfiguration> leagueConfigResults = oldLeagueConfigs.CompareWith(updatedLeagueConfigurationDto.LeagueConfigurations, x => x.LeagueId);
+        dbContext.AddRange(leagueConfigResults.NewItems);
+        dbContext.RemoveRange(leagueConfigResults.RemovedItems);
+
+        foreach (var (existingLeagueConfigResult, updatedLeagueConfigResult) in leagueConfigResults.SameItems)
+        {
+            existingLeagueConfigResult.SelectPlaylistType = updatedLeagueConfigResult.SelectPlaylistType;
+
+            ComparisonResult<PlaylistConfiguration> playlistConfigResults = existingLeagueConfigResult.Playlists.CompareWith(updatedLeagueConfigResult.Playlists, x => x.Id);
+            
+            foreach (var newPlaylistConfig in playlistConfigResults.NewItems)
+                existingLeagueConfigResult.Playlists.Add(newPlaylistConfig);
+
+            dbContext.RemoveRange(playlistConfigResults.RemovedItems);
+
+            foreach (var (existingPlaylistConfigResult, updatedPlaylistConfigResult) in playlistConfigResults.SameItems)
+            {
+                existingPlaylistConfigResult.Name = updatedPlaylistConfigResult.Name;
+                existingPlaylistConfigResult.ChannelName = updatedPlaylistConfigResult.ChannelName;
+                existingPlaylistConfigResult.RequiredVideoPartMatches = updatedPlaylistConfigResult.RequiredVideoPartMatches;
+                existingPlaylistConfigResult.RequiredVideoTitlePercentageMatch = updatedPlaylistConfigResult.RequiredVideoTitlePercentageMatch;
+                existingPlaylistConfigResult.TitlePattern = updatedPlaylistConfigResult.TitlePattern;
+                existingPlaylistConfigResult.Comment = updatedPlaylistConfigResult.Comment;
+
+                ComparisonResult<VideoTitleIdentifier> titleIdentifierResults = existingPlaylistConfigResult.TitleIdentifiers.CompareWith(updatedPlaylistConfigResult.TitleIdentifiers, x => x.Id);
+                
+                foreach (var newTitleIdentifier in titleIdentifierResults.NewItems)
+                    existingPlaylistConfigResult.TitleIdentifiers.Add(newTitleIdentifier);
+                
+                dbContext.RemoveRange(titleIdentifierResults.RemovedItems);
+                
+                foreach (var (existingTitleIdentifierResult, updatedTitleIdentifierResult) in titleIdentifierResults.SameItems)
+                    existingTitleIdentifierResult.Value = updatedTitleIdentifierResult.Value;
+
+                ComparisonResult<VideoTitleTeamFormat> titleTeamFormatResults = existingPlaylistConfigResult.TeamFormats.CompareWith(updatedPlaylistConfigResult.TeamFormats, x => x.Id);
+
+                foreach (var newTitleTeamFormat in titleTeamFormatResults.NewItems)
+                    existingPlaylistConfigResult.TeamFormats.Add(newTitleTeamFormat);
+
+                dbContext.RemoveRange(titleTeamFormatResults.RemovedItems);
+                
+                foreach (var (existingTitleTeamFormatResult, updatedTitleTeamFormatResult) in titleTeamFormatResults.SameItems)
+                    existingTitleTeamFormatResult.Value = updatedTitleTeamFormatResult.Value;
+
+                ComparisonResult<VideoTitleDateFormat> titleDateFormatResults = existingPlaylistConfigResult.DateFormats.CompareWith(updatedPlaylistConfigResult.DateFormats, x => x.Id);
+                
+                foreach (var newTitleDateFormat in titleDateFormatResults.NewItems)
+                    existingPlaylistConfigResult.DateFormats.Add(newTitleDateFormat);
+                
+                dbContext.RemoveRange(titleDateFormatResults.RemovedItems);
+
+                foreach (var (existingTitleDateFormatResult, updatedTitleDateFormatResult) in titleDateFormatResults.SameItems)
+                    existingTitleDateFormatResult.Value = existingTitleDateFormatResult.Value;
+            }
+        }
+
+        await dbContext.SaveChangesAsync();
+
+        return await GetAppSettings(dbContext);
+    }
+
     public static async Task TestScheduleService(LeaguesService leaguesService)
     {
         await leaguesService.FetchAndCacheScheduledGames();
     }
 
-    public static async Task TestYouTubeService(YouTubeRssService youTubeRssService)
+    public static async Task TestYouTubeService(YouTubeService youtubeService)
     {
-        await youTubeRssService.FetchAndCacheNewVideos();
+        await youtubeService.FetchAndCacheNewVideos();
 
-        await youTubeRssService.AddYouTubeLinksToAllMatches();
+        await youtubeService.AddYouTubeLinksToAllMatches();
     }
 
     public static async Task ResetData(AppDbContext dbContext)

@@ -14,15 +14,12 @@ builder.Services.AddRazorComponents();
 
 builder.Host.UseSerilog();
 
-builder.Services.Configure<YouTubeSettings>(
-    builder.Configuration.GetSection(YouTubeRssConstants.YouTubeSectionName));
-
 builder.Services.AddHttpClient("Default", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration.GetValue("BaseAddress", "https://localhost:7137"));
 });
 
-builder.Services.SetupDatabase(builder.Configuration);
+builder.Services.SetupDatabase(builder.Configuration, false);
 
 builder.Services.AddServices();
 
@@ -38,7 +35,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddHostedService<LeagueScheduleRefreshService>();
-builder.Services.AddHostedService<YouTubeRssRefreshService>();
+builder.Services.AddHostedService<YouTubeRefreshService>();
 builder.Services.AddHostedService<DataCleanupService>();
 
 var app = builder.Build();
@@ -66,7 +63,7 @@ app.MapGet("/api/reset", (AppDbContext dbContext) => AllEndpoints.ResetData(dbCo
 
 app.MapGet("/api/test/s", (LeaguesService leaguesService) => AllEndpoints.TestScheduleService(leaguesService));
 
-app.MapGet("/api/test/yt", (YouTubeRssService youTubeRssService) => AllEndpoints.TestYouTubeService(youTubeRssService));
+app.MapGet("/api/test/yt", (YouTubeService youtubeService) => AllEndpoints.TestYouTubeService(youtubeService));
 
 app.MapGet("/api/GetTeams", (AppDbContext dbContext) => AllEndpoints.GetTeams(dbContext));
 
@@ -79,7 +76,13 @@ app.MapPost("/api/GetGameDays", async (NhlService nhlService, MlbService mlbServ
         : Results.Problem("Failed to deserialize external API response.", statusCode: 500);
 });
 
-await app.Services.SeedDatabase();
+app.MapGet("/api/FetchPlaylistInfo", (HttpClient httpClient, [FromQuery] string playlistId, [FromQuery] int leagueId) => AllEndpoints.FetchPlaylistInfo(httpClient, playlistId, leagueId));
+
+app.MapGet("/api/GetAppSettings", (AppDbContext dbContext) => AllEndpoints.GetAppSettings(dbContext));
+
+app.MapPut("/api/UpdateAppSettings", (AppDbContext dbContext, [FromBody] LeagueConfigurationDto updatedConfigDto) => AllEndpoints.UpdateAppSettings(dbContext, updatedConfigDto));
+
+await app.Services.ApplyMigrationsAndSeedDatabase(false);
 
 try
 {

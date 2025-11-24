@@ -1,0 +1,52 @@
+{
+  "ConnectionStrings": {
+    //"DefaultConnection": "Data Source=%APP_DB_DIR%\\spoiler-avoider.db",
+
+    // ";User Id=;Trusted_Connection=True;MultipleActiveResultSets=true"
+    "DefaultConnection": "Server=localhost;Database=spoiler-avoider;Trusted_Connection=True;TrustServerCertificate=true"
+  },
+  "Host": {
+    "CORS": "https://localhost:7107"
+  },
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "BaseAddress": "https://localhost:7137",
+    "CleanupSyncFrequency": "0 0 3 1,15 * *",
+    "ScheduleSyncFrequency": "0 0 3 * * *",
+    "VideoSyncFrequency": "0 */15 * * * *",
+    "CflIcalLink": "",
+    "DataCleanupDaysBack": 14,
+    "FetchDaysBack": 7,
+    "FetchDaysForward": 1,
+    "StrictVideoCaching": true,
+    "DisplayDaysBack": 3,
+    "DisplayDaysForward": 0
+  },
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Microsoft": "Warning",
+        "System": "Warning"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "Console",
+        "Args": {
+          "formatter": "Serilog.Formatting.Compact.CompactJsonFormatter, Serilog.Sinks.Console"
+        }
+      }
+      //{
+      //  "Name": "ApplicationInsights",
+      //  "Args": {
+      //    "connectionString": "%APPLICATIONINSIGHTS_CONNECTION_STRING%",
+      //    "telemetryConverter": "Serilog.Sinks.ApplicationInsights.Sinks.ApplicationInsights.TelemetryConverters.TraceTelemetryConverter, Serilog.Sinks.ApplicationInsights"
+      //  }
+      //}
+    ],
+    "Enrich": [ "FromLogContext", "WithMachineName", "WithProcessId", "WithThreadId" ]
+  }
+}

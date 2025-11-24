@@ -1,0 +1,66 @@
+﻿@using System.Text.Json
+
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.ImportExport" Class="mr-3 mb-n1" />
+            @Label
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="@LeagueConfigurationsText" Label="New JSON" Lines="15" AutoGrow="true" AutoFocus="true" Variant="Variant.Outlined" />
+
+        <MudAlert Severity="Severity.Warning" Class="mt-4">
+            This will override the existing configuration.
+        </MudAlert>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="ImportLeagueConfigs">@Label</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    protected string Label = "Import League Configurations";
+
+    [CascadingParameter] public required IMudDialogInstance MudDialog { get; set; }
+
+    // public LeagueConfigurationDto LeagueConfiguration { get; set; } = new();
+    public string LeagueConfigurationsText { get; set; } = string.Empty;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void ImportLeagueConfigs()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(LeagueConfigurationsText))
+            {
+                Snackbar.Add("JSON cannot be empty", Severity.Warning);
+                return;
+            }
+
+            LeagueConfigurationDto? leagueConfigurations = JsonSerializer.Deserialize<LeagueConfigurationDto>(
+                LeagueConfigurationsText,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (leagueConfigurations is null)
+            {
+                Snackbar.Add("Failed to parse JSON", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add($"{Label} successful", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(leagueConfigurations));
+        }
+        catch (JsonException ex)
+        {
+            Snackbar.Add($"Invalid JSON: {ex.Message}", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+    }
+}

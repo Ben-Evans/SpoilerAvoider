@@ -4,43 +4,43 @@ namespace SpoilerFreeHighlights.Core;
 
 public static class StartupHelper
 {
-    public static void SetupDatabase(this IServiceCollection services, IConfiguration configuration)
+    public static void SetupDatabase(this IServiceCollection services, IConfiguration configuration, bool useSqlite)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
-        var databaseProvider = configuration["DatabaseProvider"];
+        string? connectionString = configuration.GetConnectionString("DefaultConnection")?.Replace("%APP_DB_DIR%", AppDbContext.DbPath);
+        if (string.IsNullOrEmpty(connectionString))
+            throw new InvalidOperationException("Database connection string is not configured.");
 
-        if (databaseProvider == "SqlServer")
+        if (useSqlite)
         {
-            services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(connectionString));
+            services.AddDbContext<AppDbContext>(options => options
+                .UseSqlite(connectionString)
+                .EnableSensitiveDataLogging());
         }
         else
         {
             services.AddDbContext<AppDbContext>(options => options
-                .UseSqlite($"Data Source={AppDbContext.DbPathWithFile}")
+                .UseSqlServer(connectionString)
                 .EnableSensitiveDataLogging());
         }
     }
 
-    public static async Task SeedDatabase(this IServiceProvider serviceProvider)
+    public static async Task ApplyMigrationsAndSeedDatabase(this IServiceProvider serviceProvider, bool useSqlite)
     {
-        // Seed DB if it doesn't exist already.
-        Directory.CreateDirectory(AppDbContext.DbPath);
+        if (useSqlite)
+            Directory.CreateDirectory(AppDbContext.DbPath);
+
         using IServiceScope scope = serviceProvider.CreateScope();
 
         AppDbContext dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        dbContext.Database.EnsureCreated(); // .Migrate; -- If adding migrations clear database.
 
-        bool leaguesSeeded = dbContext.Leagues.Any();
+        if ((await dbContext.Database.GetPendingMigrationsAsync()).Any())
+            await dbContext.Database.MigrateAsync();
+
+        bool leaguesSeeded = await dbContext.Leagues.AnyAsync();
         if (!leaguesSeeded)
         {
             Log.Logger.Information($"Seeding {nameof(Leagues)} into the database...");
-            dbContext.Leagues.AddRange(
-                [
-                    new League { Id = Leagues.Nhl, Name = Leagues.Nhl.Name },
-                    new League { Id = Leagues.Mlb, Name = Leagues.Mlb.Name },
-                    new League { Id = Leagues.Cfl, Name = Leagues.Cfl.Name }
-                ]);
+            dbContext.Leagues.AddRange(Leagues.GetAllLeagues().Select(x => new League { Id = x, Name = x.Name }));
             dbContext.SaveChanges();
             Log.Logger.Information($"{nameof(Leagues)} seeded successfully.");
         }
@@ -67,6 +67,6 @@ public static class StartupHelper
         services.AddScoped<CflService>();
         services.AddScoped<LeaguesService>();
         //services.AddSingleton<YouTubeService>();
-        services.AddScoped<YouTubeRssService>();
+        services.AddScoped<YouTubeService>();
     }
 }
