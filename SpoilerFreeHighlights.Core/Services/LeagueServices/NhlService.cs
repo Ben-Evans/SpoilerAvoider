@@ -1,4 +1,4 @@
-namespace SpoilerFreeHighlights.Core.Services;
+namespace SpoilerFreeHighlights.Core.Services.LeagueServices;
 
 public class NhlService(HttpClient _httpClient, AppDbContext _dbContext, IConfiguration _configuration)
     : LeagueService(_dbContext, _configuration)
@@ -10,6 +10,12 @@ public class NhlService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
     public override async Task<Schedule?> FetchScheduleForThisWeek(DateOnly date)
     {
         NhlApiSchedule? nhlSchedule = await FetchScheduleDataFromNhlApi(date, _httpClient);
+        if (nhlSchedule is null)
+        {
+            _logger.Error("Failed to fetch NHL schedule data from the NHL API.");
+            return default;
+        }
+
         Schedule schedule = ConvertFromNhlApiToUsableModels(nhlSchedule);
         return schedule;
     }

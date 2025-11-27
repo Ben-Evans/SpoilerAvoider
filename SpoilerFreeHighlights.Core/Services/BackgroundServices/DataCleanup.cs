@@ -29,11 +29,15 @@ public static class DataCleanup
                 .Where(x => x.LeagueId == league.Value && x.StartDateLeagueTime < cutoffDate)
                 .ExecuteDeleteAsync();
 
+            logger.Information("Deleted {GameCount} games.", gamesDeleted);
+
             int videosDeleted = await dbContext.YouTubeVideos
                 .Where(x => x.PublishedDateTimeLeague < cutoffDate)
                 .ExecuteDeleteAsync();
 
-            logger.Information("Data cleanup completed. Deleted {RowsAffected} games.", gamesDeleted);
+            logger.Information("Deleted {VideoCount} videos.", videosDeleted);
+
+            logger.Information("Data cleanup completed.");
         }
     }
 }

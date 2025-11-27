@@ -12,18 +12,18 @@ from Games g
 	join Teams ta ON ta.Id = g.AwayTeamId
 order by g.LeagueId, StartDateUtc
 
-select l.Name AS 'League', ytp.Id, ytp.Name, ytp.ChannelName
+select l.Name AS 'League', ytp.PlaylistId, ytp.PlaylistName, ytp.ChannelId, ytp.ChannelName
 from YouTubePlaylists ytp
 	join Leagues l ON l.Id = ytp.LeagueId
 order by ytp.LeagueId
 
-select l.Name AS 'League', ytp.Name AS 'Playlist', ytv.*
+select l.Name AS 'League', ytp.PlaylistName AS 'Playlist', ytp.ChannelName AS 'Channel', ytv.*
 from YouTubeVideos ytv
 	join YouTubePlaylists ytp ON ytp.Id = ytv.PlaylistId
 	join Leagues l ON l.Id = ytp.LeagueId
 order by ytp.LeagueId
 
-select l.Name AS 'League', lc.SelectPlaylistType, pc.Id, pc.Name, pc.ChannelName, pc.TitlePattern, pc.Comment
+select l.Name AS 'League', lc.SelectPlaylistType, pc.PlaylistId, pc.PlaylistName, pc.ChannelId, pc.ChannelName, pc.TitlePattern, pc.Comment
 from LeagueConfigurations lc
 	join Leagues l ON l.Id = lc.LeagueId
 	join PlaylistConfigurations pc ON pc.LeagueConfigurationId = lc.LeagueId

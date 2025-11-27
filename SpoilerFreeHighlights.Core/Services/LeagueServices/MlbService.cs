@@ -1,6 +1,4 @@
-using SpoilerFreeHighlights.Core.Models;
-
-namespace SpoilerFreeHighlights.Core.Services;
+namespace SpoilerFreeHighlights.Core.Services.LeagueServices;
 
 public class MlbService(HttpClient _httpClient, AppDbContext _dbContext, IConfiguration _configuration)
     : LeagueService(_dbContext, _configuration)
@@ -12,11 +10,45 @@ public class MlbService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
     public override async Task<Schedule?> FetchScheduleForThisWeek(DateOnly date)
     {
         MlbApiSchedule? mlbSchedule = await FetchScheduleDataFromMlbApi(date);
+        if (mlbSchedule is null)
+        {
+            _logger.Error("Failed to fetch MLB schedule data from the MLB API.");
+            return default;
+        }
+
         Schedule schedule = await ConvertFromMlbApiToUsableModels(mlbSchedule);
         return schedule;
     }
 
-    public async Task<Schedule> ConvertFromMlbApiToUsableModels(MlbApiSchedule mlbSchedule)
+    public static async Task SeedTeams(AppDbContext dbContext, HttpClient httpClient)
+    {
+        MlbApiTeamResponse? mlbApiTeams = await FetchTeamDataFromMlbApi(httpClient);
+        if (mlbApiTeams is null)
+        {
+            _logger.Error("Failed to fetch MLB team data from the MLB API. Cannot seed teams.");
+            return;
+        }
+
+        Team[] mlbTeams = mlbApiTeams.Teams
+            .Select(x => new Team
+            {
+                Id = x.Id.ToString(),
+                LeagueId = Leagues.Mlb,
+                Name = x.TeamName,
+                City = x.FranchiseName, // x.LocationName,
+                Abbreviation = x.Abbreviation,
+                LogoLink = $"https://www.mlbstatic.com/team-logos/{x.Id}.svg"
+            })
+            .OrderBy(x => x.ToString())
+            .ToArray();
+
+        _logger.Information("Seeding MLB teams into the database...");
+        dbContext.Teams.AddRange(mlbTeams);
+        await dbContext.SaveChangesAsync();
+        _logger.Information("MLB teams seeded successfully.");
+    }
+
+    private async Task<Schedule> ConvertFromMlbApiToUsableModels(MlbApiSchedule mlbSchedule)
     {
         Schedule schedule = new()
         {
@@ -62,34 +94,6 @@ public class MlbService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
         }
 
         return schedule;
-    }
-
-    public static async Task SeedTeams(AppDbContext dbContext, HttpClient httpClient)
-    {
-        MlbApiTeamResponse? mlbApiTeams = await FetchTeamDataFromMlbApi(httpClient);
-        if (mlbApiTeams is null)
-        {
-            _logger.Error("Failed to fetch MLB team data from the MLB API. Cannot seed teams.");
-            return;
-        }
-
-        Team[] mlbTeams = mlbApiTeams.Teams
-            .Select(x => new Team
-            {
-                Id = x.Id.ToString(),
-                LeagueId = Leagues.Mlb,
-                Name = x.TeamName,
-                City = x.FranchiseName, // x.LocationName,
-                Abbreviation = x.Abbreviation,
-                LogoLink = $"https://www.mlbstatic.com/team-logos/{x.Id}.svg"
-            })
-            .OrderBy(x => x.ToString())
-            .ToArray();
-
-        _logger.Information("Seeding MLB teams into the database...");
-        dbContext.Teams.AddRange(mlbTeams);
-        await dbContext.SaveChangesAsync();
-        _logger.Information("MLB teams seeded successfully.");
     }
 
     private Task<MlbApiSchedule?> FetchScheduleDataFromMlbApi(DateOnly startDate, DateOnly? endDate = default) => _httpClient.FetchContent<MlbApiSchedule?>($"https://statsapi.mlb.com/api/v1/schedule?sportId=1&startDate={startDate:yyyy-MM-dd}&endDate={endDate ?? startDate.AddDays(7):yyyy-MM-dd}/");

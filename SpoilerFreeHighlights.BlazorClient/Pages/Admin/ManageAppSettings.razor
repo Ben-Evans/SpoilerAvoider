@@ -24,13 +24,11 @@
             <MudPaper Class="pa-4 mb-4">
                 <MudGrid>
                     <MudItem xs="12">
-                        <div Class="d-flex justify-space-between align-center mb-4">
-                            @* <MudText Typo="Typo.h5">@Leagues.FromValue(leagueConfig.LeagueId).Name</MudText> *@
-                            
-                            <MudSelect @bind-Value="leagueConfig.LeagueId" OpenIcon="@Icons.Material.Filled.Sports" AdornmentColor="Color.Secondary" Class="pr-4">
+                        <div Class="d-flex justify-space-between align-center mb-4">                            
+                            <MudSelect @bind-Value="leagueConfig.LeagueId" OpenIcon="@Icons.Material.Filled.SportsFootball" AdornmentColor="Color.Primary" Class="pr-4">
                                 @foreach (Leagues league in Leagues.GetAllLeagues())
                                 {
-                                    <MudSelectItem Value="@league.Value">@league.Name</MudSelectItem>
+                                    <MudSelectItem Value="@league.Value">@league.DisplayName</MudSelectItem>
                                 }
                             </MudSelect>
                             
@@ -55,18 +53,19 @@
                     <MudExpansionPanels Class="mb-3">
                         <MudExpansionPanel>
                             <TitleContent>
-                                <div class="d-flex align-center justify-space-between" style="width: 100%;">
-                                    <MudText>@(string.IsNullOrEmpty(playlist.Name) ? "New Playlist" : playlist.Name)</MudText>
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                                   Color="Color.Error"
-                                                   Size="Size.Small"
-                                                   OnClick="@(() => RemovePlaylist(leagueIndex, playlistIndex))" />
-                                </div>
+                                <MudToolBar>
+                                    <MudText>@(string.IsNullOrEmpty(playlist.ToString()) ? "New Playlist" : playlist.ToString())</MudText>
+                                    <MudSpacer />
+                                    <div @onclick:stopPropagation @onpointerdown:stopPropagation @onpointerup:stopPropagation>
+                                        <MudSwitch @bind-Value="playlist.IsDisabled" Color="Color.Error" UncheckedColor="Color.Primary" Label="@(playlist.IsDisabled ? "Disabled" : "Enabled")" Class="mr-4" />
+                                    </div>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemovePlaylist(leagueIndex, playlistIndex))" />
+                                </MudToolBar>
                             </TitleContent>
                             <ChildContent>
                                 <MudGrid>
                                     <MudItem xs="12" md="6">
-                                        <MudTextField @bind-Value="playlist.Id"
+                                        <MudTextField @bind-Value="playlist.PlaylistId"
                                                       Label="Playlist ID"
                                                       Variant="Variant.Outlined"
                                                       Adornment="Adornment.End"
@@ -74,7 +73,15 @@
                                                       OnAdornmentClick="@(() => FetchAndAutoPopulatePlaylistMetaData(leagueIndex, playlistIndex))" />
                                     </MudItem>
                                     <MudItem xs="12" md="6">
-                                        <MudTextField @bind-Value="playlist.Name" Label="Name" Variant="Variant.Outlined" />
+                                        <MudTextField @bind-Value="playlist.PlaylistName" Label="Playlist Name" Variant="Variant.Outlined" />
+                                    </MudItem>
+                                    <MudItem xs="12" md="6">
+                                        <MudTextField @bind-Value="playlist.ChannelId"
+                                                      Label="Channel ID"
+                                                      Variant="Variant.Outlined"
+                                                      Adornment="Adornment.End"
+                                                      AdornmentIcon="@Icons.Material.Filled.AutoAwesome"
+                                                      OnAdornmentClick="@(() => FetchAndAutoPopulatePlaylistMetaData(leagueIndex, playlistIndex))" />
                                     </MudItem>
                                     <MudItem xs="12" md="6">
                                         <MudTextField @bind-Value="playlist.ChannelName" Label="Channel Name" Variant="Variant.Outlined" />
@@ -86,7 +93,7 @@
                                         <MudNumericField @bind-Value="playlist.RequiredVideoTitlePercentageMatch" Label="Required Title Match" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Percent" Disabled="true" />
                                     </MudItem>
                                     <MudItem xs="12">
-                                        <MudTextField @bind-Value="playlist.TitlePattern" Label="Title Pattern (Regex)" Variant="Variant.Outlined" Lines="3" AutoGrow />
+                                        <MudTextField @bind-Value="playlist.TitlePattern" Label="Title Pattern (Raw Regex)" Variant="Variant.Outlined" Lines="3" AutoGrow />
                                     </MudItem>
                                     <MudItem xs="12">
                                         <MudTextField @bind-Value="playlist.Comment" Label="Comment (Optional)" Variant="Variant.Outlined" Lines="3" AutoGrow />
@@ -192,26 +199,37 @@
     {
         LeagueConfiguration leagueConfig = AppSettings.LeagueConfigurations[leagueIndex];
         PlaylistConfiguration playlist = leagueConfig.Playlists[playlistIndex];
-        string playlistId = playlist.Id.Trim();
+        
+        string playlistId = playlist.PlaylistId.Trim();
+        string channelId = playlist.ChannelId.Trim();
 
-        if (!string.IsNullOrEmpty(playlistId))
+        bool hasPlaylistId = !string.IsNullOrEmpty(playlistId);
+        bool hasChannelId = !string.IsNullOrEmpty(channelId);
+        if (hasPlaylistId || hasChannelId)
         {
             try
             {
-                HttpResponseMessage? response = await HttpClient.GetAsync($"/api/FetchPlaylistInfo?playlistId={playlistId}&leagueId={leagueConfig.LeagueId}");
+                HttpResponseMessage? response = await HttpClient.GetAsync($"/api/FetchPlaylistInfo?playlistId={playlistId}&channelId={channelId}&leagueId={leagueConfig.LeagueId}");
                 if (response.IsSuccessStatusCode)
                 {
-                    YouTubePlaylist youtubePlaylist = await response.Content.ReadFromJsonAsync<YouTubePlaylist>();
+                    YouTubePlaylist? youtubePlaylist = await response.Content.ReadFromJsonAsync<YouTubePlaylist>();
+                    if (youtubePlaylist is null)
+                    {
+                        Console.WriteLine("Error fetching playlist info.");
+                        return;
+                    }
 
-                    playlist.Id = youtubePlaylist.Id;
-                    playlist.Name = youtubePlaylist.Name;
+                    // playlist.Id = youtubePlaylist.Id;
+                    playlist.PlaylistId = youtubePlaylist.PlaylistId;
+                    playlist.PlaylistName = youtubePlaylist.PlaylistName;
+                    playlist.ChannelId = youtubePlaylist.ChannelId;
                     playlist.ChannelName = youtubePlaylist.ChannelName;
                 }
             }
             catch (Exception ex)
             {
-                // Logger.LogError($"Error fetching schedule: {ex.Message}");
-                Console.WriteLine($"Error fetching schedule: {ex.Message}");
+                // Logger.LogError($"Error fetching playlist info: {ex.Message}");
+                Console.WriteLine($"Error fetching playlist info: {ex.Message}");
             }
         }
     }
@@ -276,7 +294,8 @@
 
     private void AddPlaylist(int leagueIndex)
     {
-        AppSettings.LeagueConfigurations[leagueIndex].Playlists.Add(new PlaylistConfiguration());
+        // TODO: This can be dangerous if the values are not validated
+        AppSettings.LeagueConfigurations[leagueIndex].Playlists.Add(new PlaylistConfiguration(string.Empty, string.Empty, string.Empty, string.Empty));
     }
 
     private void RemovePlaylist(int leagueIndex, int playlistIndex)

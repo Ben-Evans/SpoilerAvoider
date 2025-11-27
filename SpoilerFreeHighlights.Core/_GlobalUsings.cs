@@ -5,6 +5,7 @@ global using ILogger = Serilog.ILogger;
 global using SpoilerFreeHighlights.Core.Models;
 global using SpoilerFreeHighlights.Core.Persistence;
 global using SpoilerFreeHighlights.Core.Services;
+global using SpoilerFreeHighlights.Core.Services.LeagueServices;
 global using SpoilerFreeHighlights.Shared.Enums;
 global using SpoilerFreeHighlights.Shared.Models;
 global using SpoilerFreeHighlights.Shared.Utility;

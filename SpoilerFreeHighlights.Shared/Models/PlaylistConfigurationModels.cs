@@ -18,11 +18,14 @@ public class LeagueConfiguration
     public List<PlaylistConfiguration> Playlists { get; set; } = [];
 }
 
-public class PlaylistConfiguration
+public class PlaylistConfiguration(string playlistId, string playlistName, string channelId, string channelName)
 {
-    public string Id { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string ChannelName { get; set; } = string.Empty;
+    public int Id { get; set; }
+    public bool IsDisabled { get; set; }
+    public string PlaylistId { get; set; } = playlistId;
+    public string PlaylistName { get; set; } = playlistName;
+    public string ChannelId { get; set; } = channelId;
+    public string ChannelName { get; set; } = channelName;
     public int RequiredVideoPartMatches { get; set; } = 3;
     public int RequiredVideoTitlePercentageMatch { get; set; } = 96;
     public string TitlePattern { get; set; } = string.Empty;
@@ -33,6 +36,11 @@ public class PlaylistConfiguration
     public List<VideoTitleIdentifier> TitleIdentifiers { get; set; } = [];
     public List<VideoTitleTeamFormat> TeamFormats { get; set; } = [];
     public List<VideoTitleDateFormat> DateFormats { get; set; } = [];
+
+    public override string ToString()
+    {
+        return !string.IsNullOrEmpty(PlaylistName) ? $"{ChannelName}: {PlaylistName}" : ChannelName;
+    }
 }
 
 public class VideoTitleIdentifier
@@ -40,7 +48,7 @@ public class VideoTitleIdentifier
     public int Id { get; set; }
     public string Value { get; set; } = string.Empty;
 
-    public string PlaylistConfigurationId { get; set; } = string.Empty;
+    public int PlaylistConfigurationId { get; set; }
 }
 
 public class VideoTitleTeamFormat
@@ -48,7 +56,7 @@ public class VideoTitleTeamFormat
     public int Id { get; set; }
     public string Value { get; set; } = string.Empty;
 
-    public string PlaylistConfigurationId { get; set; } = string.Empty;
+    public int PlaylistConfigurationId { get; set; }
 }
 
 public class VideoTitleDateFormat
@@ -56,30 +64,5 @@ public class VideoTitleDateFormat
     public int Id { get; set; }
     public string Value { get; set; } = string.Empty;
 
-    public string PlaylistConfigurationId { get; set; } = string.Empty;
-}
-
-/*public class VideoTitlePattern
-{
-    public int Id { get; set; }
-    public string Value { get; set; }
-
-    public string PlaylistConfigurationId { get; set; }
-}*/
-
-/*public class PlaylistConfigurationValue
-{
-    public int Id { get; set; }
-    public string Value { get; set; } = string.Empty;
-    public ValueType ValueType { get; set; }
-
     public int PlaylistConfigurationId { get; set; }
 }
-
-public enum ValueType
-{
-    TitleIdentifier,
-    TeamFormat,
-    DateFormat
-}*/
-

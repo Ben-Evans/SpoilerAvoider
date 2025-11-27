@@ -1,6 +1,4 @@
-﻿using System.Net.Http;
-
-namespace SpoilerFreeHighlights.Core.Endpoints;
+﻿namespace SpoilerFreeHighlights.Core.Endpoints;
 
 public static class AllEndpoints
 {
@@ -54,22 +52,23 @@ public static class AllEndpoints
         return allSchedule;
     }
 
-    public static YouTubePlaylist FetchPlaylistInfo(HttpClient httpClient, string playlistId, int leagueId)
+    public static YouTubePlaylist FetchPlaylistInfo(string playlistId, string channelId, int leagueId)
     {
         Leagues league = Leagues.FromValue(leagueId);
-        YouTubePlaylist playlist = YouTubeService.FetchLatestVideosFromRssFeed(playlistId, league);
+        YouTubePlaylist playlist = YouTubeService.FetchLatestVideosFromRssFeed(playlistId, channelId, league);
         playlist.Videos = [];
         return playlist;
     }
 
     public static async Task<LeagueConfigurationDto> GetAppSettings(AppDbContext dbContext)
     {
-        return new() { LeagueConfigurations = await dbContext.LeagueConfigurations.ToListAsync() };
+        return new() { LeagueConfigurations = await dbContext.LeagueConfigurations.IgnoreQueryFilters().ToListAsync() };
     }
 
     public static async Task<LeagueConfigurationDto> UpdateAppSettings(AppDbContext dbContext, LeagueConfigurationDto updatedLeagueConfigurationDto)
     {
         List<LeagueConfiguration> oldLeagueConfigs = await dbContext.LeagueConfigurations
+            .IgnoreQueryFilters()
             .AsTracking()
             .ToListAsync();
 
@@ -81,8 +80,8 @@ public static class AllEndpoints
         {
             existingLeagueConfigResult.SelectPlaylistType = updatedLeagueConfigResult.SelectPlaylistType;
 
-            ComparisonResult<PlaylistConfiguration> playlistConfigResults = existingLeagueConfigResult.Playlists.CompareWith(updatedLeagueConfigResult.Playlists, x => x.Id);
-            
+            ComparisonResult<PlaylistConfiguration> playlistConfigResults = existingLeagueConfigResult.Playlists.CompareWith(updatedLeagueConfigResult.Playlists, x => new { x.PlaylistId, x.ChannelId }); // vs x.Id
+
             foreach (var newPlaylistConfig in playlistConfigResults.NewItems)
                 existingLeagueConfigResult.Playlists.Add(newPlaylistConfig);
 
@@ -90,8 +89,11 @@ public static class AllEndpoints
 
             foreach (var (existingPlaylistConfigResult, updatedPlaylistConfigResult) in playlistConfigResults.SameItems)
             {
-                existingPlaylistConfigResult.Name = updatedPlaylistConfigResult.Name;
+                existingPlaylistConfigResult.PlaylistId = updatedPlaylistConfigResult.PlaylistId;
+                existingPlaylistConfigResult.PlaylistName = updatedPlaylistConfigResult.PlaylistName;
                 existingPlaylistConfigResult.ChannelName = updatedPlaylistConfigResult.ChannelName;
+                existingPlaylistConfigResult.ChannelId = updatedPlaylistConfigResult.ChannelId;
+                existingPlaylistConfigResult.IsDisabled = updatedPlaylistConfigResult.IsDisabled;
                 existingPlaylistConfigResult.RequiredVideoPartMatches = updatedPlaylistConfigResult.RequiredVideoPartMatches;
                 existingPlaylistConfigResult.RequiredVideoTitlePercentageMatch = updatedPlaylistConfigResult.RequiredVideoTitlePercentageMatch;
                 existingPlaylistConfigResult.TitlePattern = updatedPlaylistConfigResult.TitlePattern;
@@ -141,9 +143,9 @@ public static class AllEndpoints
 
     public static async Task TestYouTubeService(YouTubeService youtubeService)
     {
-        await youtubeService.FetchAndCacheNewVideos();
-
-        await youtubeService.AddYouTubeLinksToAllMatches();
+        bool newVideos = await youtubeService.FetchAndCacheNewVideos();
+        if (newVideos)
+            await youtubeService.AddYouTubeLinksToAllMatches();
     }
 
     public static async Task ResetData(AppDbContext dbContext)

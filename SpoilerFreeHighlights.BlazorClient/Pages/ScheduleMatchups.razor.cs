@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 
 namespace SpoilerFreeHighlights.BlazorClient.Pages;
 
-public partial class ScheduleMatchups : IDisposable
+public partial class ScheduleMatchups // : IDisposable
 {
     [Inject] public required HttpClient HttpClient { get; set; }
     [Inject] public required NavigationManager NavigationManager { get; set; }
@@ -17,7 +17,7 @@ public partial class ScheduleMatchups : IDisposable
 
     private LocalCacheService? LocalStorage;
     private UserPreference userPreferences = new();
-    private Timer? refreshTimer;
+    //private Timer? refreshTimer;
 
     private string? previousPageRoute;
 
@@ -34,9 +34,9 @@ public partial class ScheduleMatchups : IDisposable
     protected static string GetTeamLogoLink(Team team)
     {
         if (team.LeagueId == Leagues.Nhl && team.ToString() == "Washington Capitals")
-            return $"/Resources/Team-Logos/{Leagues.Nhl.Name}/Resized/{team.Abbreviation}.svg";
+            return $"/Resources/Team-Logos/{Leagues.Nhl.DisplayName}/Resized/{team.Abbreviation}.svg";
         else if (team.LeagueId == Leagues.Cfl)
-            return $"/Resources/Team-Logos/{Leagues.Cfl.Name}/Originals/{team.Abbreviation}.svg";
+            return $"/Resources/Team-Logos/{Leagues.Cfl.DisplayName}/Originals/{team.Abbreviation}.svg";
 
         return team.LogoLink;
     }
@@ -74,7 +74,7 @@ public partial class ScheduleMatchups : IDisposable
         string pagePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
 
         Leagues[] allLeagues = Leagues.GetAllLeagues();
-        Leagues? league = allLeagues.FirstOrDefault(x => pagePath.Equals(x.Name, StringComparison.OrdinalIgnoreCase));
+        Leagues? league = allLeagues.FirstOrDefault(x => pagePath.Equals(x.DisplayName, StringComparison.OrdinalIgnoreCase));
         if (league is not null)
             SelectedLeagues = [ league ];
 
@@ -83,7 +83,7 @@ public partial class ScheduleMatchups : IDisposable
 
         await FetchScheduleData();
 
-        refreshTimer = new Timer(async _ => await RefreshData(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+        //refreshTimer = new Timer(async _ => await RefreshData(), null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
     }
 
     /// <summary>
@@ -108,7 +108,7 @@ public partial class ScheduleMatchups : IDisposable
         }
     }
 
-    private async Task RefreshData()
+    /*private async Task RefreshData()
     {
         //Logger.LogDebug("Refreshing data: {Time}", DateTime.Now.ToString("HH:mm"));
         Console.WriteLine($"Refreshing data: {DateTime.Now.ToString("HH:mm")}");
@@ -123,5 +123,5 @@ public partial class ScheduleMatchups : IDisposable
         refreshTimer?.Dispose();
 
         GC.SuppressFinalize(this);
-    }
+    }*/
 }

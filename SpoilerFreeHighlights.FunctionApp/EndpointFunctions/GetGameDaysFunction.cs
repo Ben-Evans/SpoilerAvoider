@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using SpoilerFreeHighlights.Core.Services.LeagueServices;
 using System.Net;
 
 namespace SpoilerFreeHighlights.FunctionApp.EndpointFunctions;

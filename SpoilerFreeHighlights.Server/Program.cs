@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SpoilerFreeHighlights.Core.Endpoints;
+using SpoilerFreeHighlights.Core.Services.LeagueServices;
 using SpoilerFreeHighlights.Server.BackgroundServices;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -76,7 +77,7 @@ app.MapPost("/api/GetGameDays", async (NhlService nhlService, MlbService mlbServ
         : Results.Problem("Failed to deserialize external API response.", statusCode: 500);
 });
 
-app.MapGet("/api/FetchPlaylistInfo", (HttpClient httpClient, [FromQuery] string playlistId, [FromQuery] int leagueId) => AllEndpoints.FetchPlaylistInfo(httpClient, playlistId, leagueId));
+app.MapGet("/api/FetchPlaylistInfo", ([FromQuery] string playlistId, [FromQuery] string channelId, [FromQuery] int leagueId) => AllEndpoints.FetchPlaylistInfo(playlistId, channelId, leagueId));
 
 app.MapGet("/api/GetAppSettings", (AppDbContext dbContext) => AllEndpoints.GetAppSettings(dbContext));
 

@@ -62,9 +62,9 @@ public class Schedule
             DateOnly[] dates = GameDays.Select(x => x.DateLeague).OrderBy(x => x).ToArray();
             DateOnly first = dates.First();
             DateOnly last = dates.Last();
-            return first != last ? $"{League.Name}: {dates.First():yyyy-MM-dd} - {dates.Last():yyyy-MM-dd}" : $"{League.Name}: {dates.First():yyyy-MM-dd}";
+            return first != last ? $"{League.DisplayName}: {dates.First():yyyy-MM-dd} - {dates.Last():yyyy-MM-dd}" : $"{League.DisplayName}: {dates.First():yyyy-MM-dd}";
         }
-        return League.Name;
+        return League.DisplayName;
     }
 }
 

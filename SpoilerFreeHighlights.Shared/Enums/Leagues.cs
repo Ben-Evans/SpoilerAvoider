@@ -15,6 +15,7 @@ public sealed class Leagues : SmartEnum<Leagues>
     public static readonly Leagues Mlb = new(nameof(Mlb), 2, DefaultTimeZone);
     public static readonly Leagues Cfl = new(nameof(Cfl), 3, DefaultTimeZone);
 
+    public string DisplayName => Name.ToUpper();
     /// <summary>
     /// Based on the head office, media operations, official schedules, standings, and announcements.
     /// </summary>

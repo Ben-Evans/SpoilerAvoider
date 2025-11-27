@@ -30,7 +30,7 @@ public class LeaguesService(
             Schedule? leagueSchedule = await leagueService.FetchScheduleForThisWeek(leagueToday);
             if (leagueSchedule is null)
             {
-                _logger.Error("Failed to retrieve data from external API '{LeagueName}'.", league.Name);
+                _logger.Error("Failed to retrieve data from external API '{LeagueName}'.", league.DisplayName);
                 continue;
             }
 
@@ -79,12 +79,24 @@ public abstract class LeagueService(AppDbContext _dbContext, IConfiguration _con
         DateTime daysForward = League.LeagueDateTimeToday.AddDays(_configuration.GetValue<int>("DisplayDaysForward"));
         DateTime daysBack = League.LeagueDateTimeToday.AddDays(-_configuration.GetValue<int>("DisplayDaysBack"));
 
-        Game[] games = await _dbContext.Games
+        string[] preferredTeamIds = userPreference.LeaguePreferences[League].Select(team => team.Id).ToArray();
+
+        // In order to avoid using .Date on the comparison is using daysForwardPlusOne a better approach?
+        DateTime daysForwardPlusOne = daysForward.AddDays(1);
+
+        // TODO: For reduced DB load prevent using .Date on x.StartDateLeagueTime.Date?
+        // This is also hit once for every league on a Home page load, is there a better way to consolidate this into less DB calls? (LeagueDateTimeToday limiting possibilites)
+        IQueryable<Game> gamesQuery = _dbContext.Games
             .Include(x => x.HomeTeam)
             .Include(x => x.AwayTeam)
             .Where(x => x.LeagueId == League
-                && x.StartDateLeagueTime.Date <= daysForward && x.StartDateLeagueTime.Date >= daysBack)
-            .ToArrayAsync();
+                // && x.StartDateLeagueTime.Date <= daysForward && x.StartDateLeagueTime.Date >= daysBack)
+                && x.StartDateLeagueTime <= daysForwardPlusOne && x.StartDateLeagueTime > daysBack);
+
+        if (preferredTeamIds.Any())
+            gamesQuery.Where(x => preferredTeamIds.Contains(x.HomeTeamId) || preferredTeamIds.Contains(x.AwayTeamId));
+
+        Game[] games = await gamesQuery.ToArrayAsync();
 
         GameDay[] gameDays = games
             .GroupBy(x => x.StartDateLeagueTime.Date)
@@ -95,11 +107,6 @@ public abstract class LeagueService(AppDbContext _dbContext, IConfiguration _con
             })
             .OrderByDescending(x => x.DateLeague)
             .ToArray();
-
-        string[] preferredTeamIds = userPreference.LeaguePreferences[League].Select(team => team.Id).ToArray();
-        if (preferredTeamIds.Any())
-            foreach (GameDay gameDay in gameDays)
-                gameDay.Games = gameDay.Games.Where(x => preferredTeamIds.Any(y => y == x.HomeTeam.Id || y == x.AwayTeam.Id)).ToList();
 
         Schedule schedule = new()
         {

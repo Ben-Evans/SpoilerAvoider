@@ -24,7 +24,7 @@
       },
       {
         "Path": "SpoilerFreeHighlights.BlazorClient\\SpoilerFreeHighlights.BlazorClient.csproj",
-        "Action": "Start",
+        "Action": "StartWithoutDebugging",
         "DebugTarget": "https"
       }
     ]

@@ -1,10 +1,15 @@
 ﻿namespace SpoilerFreeHighlights.Shared.Models;
 
-public class YouTubePlaylist
+/// <summary>
+/// Originally a YouTube Playlist, but now it can now exist with just a Channel.
+/// </summary>
+public class YouTubePlaylist(string playlistId, string playlistName, string channelId, string channelName)
 {
-    public string Id { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string ChannelName { get; set; } = string.Empty;
+    public int Id { get; set; }
+    public string PlaylistId { get; set; } = playlistId;
+    public string PlaylistName { get; set; } = playlistName;
+    public string ChannelId { get; set; } = channelId;
+    public string ChannelName { get; set; } = channelName;
 
     public int LeagueId { get; set; }
     public League League { get; set; }
@@ -13,7 +18,7 @@ public class YouTubePlaylist
 
     public override string ToString()
     {
-        return $"{ChannelName}: {Name}";
+        return !string.IsNullOrEmpty(PlaylistName) ? $"{ChannelName}: {PlaylistName}" : ChannelName;
     }
 }
 
@@ -30,7 +35,7 @@ public class YouTubeVideo(string id, string title, DateTime publishedDateUtc, Da
     public string ExtractedTitleIdentifierA { get; set; } = string.Empty;
     public string ExtractedTitleIdentifierB { get; set; } = string.Empty;
 
-    public string PlaylistId { get; set; }
+    public int PlaylistId { get; set; }
     public YouTubePlaylist Playlist { get; set; }
 
     public override string ToString()

@@ -13,7 +13,7 @@
             <MudGrid Class="mt-6 px-4">
                 @foreach (Leagues league in leagues)
                 {
-                    <MudSelect T="@Team" Label="@($"{league.Name.ToUpper()} Teams")" MultiSelection="true" SelectedValues="GetSelectedTeams(league)" SelectedValuesChanged="(teams) => SetSelectedTeams(league, teams)">
+                    <MudSelect T="@Team" Label="@($"{league.DisplayName} Teams")" MultiSelection="true" SelectedValues="GetSelectedTeams(league)" SelectedValuesChanged="(teams) => SetSelectedTeams(league, teams)">
                         <MudItem xs="12">
                             @foreach (Team leagueTeam in allTeams[league])
                             {

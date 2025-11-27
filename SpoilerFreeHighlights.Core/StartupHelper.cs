@@ -13,14 +13,20 @@ public static class StartupHelper
         if (useSqlite)
         {
             services.AddDbContext<AppDbContext>(options => options
-                .UseSqlite(connectionString)
-                .EnableSensitiveDataLogging());
+                    .UseSqlite(connectionString)
+#if DEBUG
+                    .EnableSensitiveDataLogging()
+#endif
+                );
         }
         else
         {
             services.AddDbContext<AppDbContext>(options => options
-                .UseSqlServer(connectionString)
-                .EnableSensitiveDataLogging());
+                    .UseSqlServer(connectionString)
+#if DEBUG
+                    .EnableSensitiveDataLogging()
+#endif
+                );
         }
     }
 
@@ -40,7 +46,7 @@ public static class StartupHelper
         if (!leaguesSeeded)
         {
             Log.Logger.Information($"Seeding {nameof(Leagues)} into the database...");
-            dbContext.Leagues.AddRange(Leagues.GetAllLeagues().Select(x => new League { Id = x, Name = x.Name }));
+            dbContext.Leagues.AddRange(Leagues.GetAllLeagues().Select(x => new League { Id = x, Name = x.DisplayName }));
             dbContext.SaveChanges();
             Log.Logger.Information($"{nameof(Leagues)} seeded successfully.");
         }
@@ -66,7 +72,6 @@ public static class StartupHelper
         services.AddScoped<MlbService>();
         services.AddScoped<CflService>();
         services.AddScoped<LeaguesService>();
-        //services.AddSingleton<YouTubeService>();
         services.AddScoped<YouTubeService>();
     }
 }

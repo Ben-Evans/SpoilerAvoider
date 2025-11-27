@@ -26,7 +26,7 @@ public class YouTubeService(AppDbContext _dbContext, IConfiguration _configurati
             List<PlaylistConfiguration> playlistConfigs = GetPlaylistConfigurations(leagueConfigurations, league);
             foreach (PlaylistConfiguration playlistConfig in playlistConfigs)
             {
-                YouTubePlaylist newPlaylist = FetchLatestVideosFromRssFeed(playlistConfig.Id, league);
+                YouTubePlaylist newPlaylist = FetchLatestVideosFromRssFeed(playlistConfig.PlaylistId, playlistConfig.ChannelId, league);
 
                 DateTime daysForward = league.LeagueDateTimeNow.AddDays(_configuration.GetValue<int>("FetchDaysForward")).Date;
                 DateTime daysBack = league.LeagueDateTimeNow.AddDays(-_configuration.GetValue<int>("FetchDaysBack")).Date;
@@ -49,7 +49,7 @@ public class YouTubeService(AppDbContext _dbContext, IConfiguration _configurati
                 YouTubePlaylist? existingPlaylist = await _dbContext.YouTubePlaylists
                     .AsTracking()
                     .Include(x => x.Videos)
-                    .FirstOrDefaultAsync(x => x.Id == playlistConfig.Id);
+                    .FirstOrDefaultAsync(x => x.PlaylistId == playlistConfig.PlaylistId || x.ChannelId == playlistConfig.ChannelId);
 
                 if (existingPlaylist is null)
                 {
@@ -77,19 +77,78 @@ public class YouTubeService(AppDbContext _dbContext, IConfiguration _configurati
     /// <summary>
     /// Get 15 latest YouTube videos from playlist.
     /// </summary>
-    public static YouTubePlaylist FetchLatestVideosFromRssFeed(string playlistId, Leagues league)
+    public static YouTubePlaylist FetchLatestVideosFromRssFeed(string playlistId, string channelId, Leagues league)
     {
-        string youtubeRssUrl = $"https://www.youtube.com/feeds/videos.xml?playlist_id={playlistId}";
+        return !string.IsNullOrEmpty(playlistId)
+            ? FetchLatestVideosFromRssFeedByPlaylist(playlistId, league)
+            : FetchLatestVideosFromRssFeedByChannel(channelId, league);
+    }
 
-        using XmlReader reader = XmlReader.Create(youtubeRssUrl);
+    /// <summary>
+    /// <inheritdoc cref="FetchLatestVideosFromRssFeed"/>
+    /// </summary>
+    private static SyndicationFeed FetchLatestVideosFromRssFeedByRssArg(string rssArgument)
+    {
+        string youtubeRssUrl = $"https://www.youtube.com/feeds/videos.xml?{rssArgument}";
 
-        SyndicationFeed feed = SyndicationFeed.Load(reader);
-
-        YouTubePlaylist playlist = new()
+        try
         {
-            Id = playlistId,
-            Name = feed.Title.Text,
-            ChannelName = feed.Authors.First().Name,
+            using XmlReader reader = XmlReader.Create(youtubeRssUrl);
+
+            SyndicationFeed feed = SyndicationFeed.Load(reader);
+            return feed;
+        }
+        catch (Exception)
+        {
+            _logger.Error("Failed to fetch YouTube RSS data from url: '{URL}'.", youtubeRssUrl);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// <inheritdoc cref="FetchLatestVideosFromRssFeed"/>
+    /// </summary>
+    private static YouTubePlaylist FetchLatestVideosFromRssFeedByPlaylist(string playlistId, Leagues league)
+    {
+        if (string.IsNullOrEmpty(playlistId))
+            throw new ArgumentException($"{nameof(playlistId)} must be provided.");
+
+        SyndicationFeed feed = FetchLatestVideosFromRssFeedByRssArg($"playlist_id={playlistId}");
+
+        string channelId = feed.ElementExtensions
+                .ReadElementExtensions<string>("channelId", "http://www.youtube.com/xml/schemas/2015")
+                .FirstOrDefault() ?? string.Empty;
+
+        YouTubePlaylist playlist = new(playlistId, feed.Title.Text, channelId, feed.Authors.First().Name)
+        {
+            //Id = string.Empty,
+            LeagueId = league.Value,
+            Videos = feed.Items.Select(video => new YouTubeVideo(
+                video.Id.Split(":").Last(),
+                video.Title.Text,
+                video.PublishDate.DateTime,
+                video.PublishDate.DateTime.ConvertToLeagueDateTime(league),
+                video.Links.FirstOrDefault()?.Uri.ToString() ?? string.Empty)
+            )
+            .ToList()
+        };
+
+        return playlist;
+    }
+
+    /// <summary>
+    /// <inheritdoc cref="FetchLatestVideosFromRssFeed"/>
+    /// </summary>
+    private static YouTubePlaylist FetchLatestVideosFromRssFeedByChannel(string channelId, Leagues league)
+    {
+        if (string.IsNullOrEmpty(channelId))
+            throw new ArgumentException($"{nameof(channelId)} must be provided.");
+
+        SyndicationFeed feed = FetchLatestVideosFromRssFeedByRssArg($"channel_id={channelId}");
+
+        YouTubePlaylist playlist = new(string.Empty, string.Empty, channelId, feed.Title.Text)
+        {
+            //Id = string.Empty,
             LeagueId = league.Value,
             Videos = feed.Items.Select(video => new YouTubeVideo(
                 video.Id.Split(":").Last(),
@@ -122,14 +181,23 @@ public class YouTubeService(AppDbContext _dbContext, IConfiguration _configurati
         LeagueConfiguration[] leagueConfigurations = await _dbContext.LeagueConfigurations.ToArrayAsync();
 
         List<PlaylistConfiguration> playlistConfigs = GetPlaylistConfigurations(leagueConfigurations, league);
-        string[] playlistIds = playlistConfigs.Select(x => x.Id).ToArray();
+        if (!playlistConfigs.Any())
+            return;
+
+        bool usePlaylistIds = playlistConfigs.All(x => !string.IsNullOrEmpty(x.PlaylistId));
+        string[] playlistIds = playlistConfigs.Select(x => x.PlaylistId).Where(x => !string.IsNullOrEmpty(x)).ToArray();
+        string[] channelIds = playlistConfigs.Select(x => x.ChannelId).Where(x => !string.IsNullOrEmpty(x)).ToArray();
 
         // Filter videos by ones with Extracted fields populated to get highlight videos.
-        YouTubePlaylist[] playlists = await _dbContext.YouTubePlaylists
+        IQueryable<YouTubePlaylist> playlistQuery = _dbContext.YouTubePlaylists
             .Include(x => x.Videos.Where(y => !string.IsNullOrEmpty(y.ExtractedTitleTeamA) && !string.IsNullOrEmpty(y.ExtractedTitleTeamB)).OrderBy(y => y.PublishedDateUtc))
-            .Where(x => x.LeagueId == league.Value && playlistIds.Contains(x.Id))
-            .ToArrayAsync();
-        
+            .Where(x => x.LeagueId == league.Value);
+        if (usePlaylistIds)
+            playlistQuery = playlistQuery.Where(x => playlistIds.Contains(x.PlaylistId));
+        else
+            playlistQuery = playlistQuery.Where(x => channelIds.Contains(x.ChannelId));
+
+        YouTubePlaylist[] playlists = await playlistQuery.ToArrayAsync();
         YouTubeVideo[] videos = playlists.SelectMany(x => x.Videos)
             .OrderBy(x => x.PublishedDateTimeLeague)
             .ToArray();
@@ -160,7 +228,7 @@ public class YouTubeService(AppDbContext _dbContext, IConfiguration _configurati
 
         foreach (YouTubePlaylist playlist in playlists)
         {
-            PlaylistConfiguration playlistConfig = playlistConfigs.First(x => x.Id == playlist.Id);
+            PlaylistConfiguration playlistConfig = playlistConfigs.First(x => x.PlaylistId == playlist.PlaylistId || x.ChannelId == playlist.ChannelId);
 
             foreach (Game game in games)
             {
@@ -197,11 +265,11 @@ public class YouTubeService(AppDbContext _dbContext, IConfiguration _configurati
     private static List<PlaylistConfiguration> GetPlaylistConfigurations(LeagueConfiguration[] leagueConfigs, Leagues league)
     {
         LeagueConfiguration? leagueConfig = leagueConfigs.FirstOrDefault(x => x.LeagueId == league.Value);
-        if (leagueConfig is null)
+        if (leagueConfig is null || !leagueConfig.Playlists.Any())
             //throw new Exception($"No league configuration found for league '{league.Name}'.");
             return [];
 
-        List<PlaylistConfiguration> playlistConfigs = new();
+        List<PlaylistConfiguration> playlistConfigs = [];
         string playlistSelectionMode = leagueConfig.SelectPlaylistType;
         switch (playlistSelectionMode)
         {
@@ -214,7 +282,7 @@ public class YouTubeService(AppDbContext _dbContext, IConfiguration _configurati
                 playlistConfigs.Add(leagueConfig.Playlists.First());
                 break;
             default:
-                throw new NotImplementedException($"Unrecognized or missing playlist selection mode for league '{league.Name}'.");
+                throw new NotImplementedException($"Unrecognized or missing playlist selection mode for league '{league.DisplayName}'.");
         }
 
         return playlistConfigs;

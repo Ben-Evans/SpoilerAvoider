@@ -59,6 +59,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<LeagueConfiguration>()
             .Navigation(x => x.Playlists)
             .AutoInclude();
+        
+        modelBuilder.Entity<PlaylistConfiguration>()
+            .HasQueryFilter(x => !x.IsDisabled);
 
         modelBuilder.Entity<PlaylistConfiguration>()
             .HasMany(x => x.TitleIdentifiers)
