@@ -32,6 +32,7 @@ else
                         @foreach (Game game in gameDay.Games)
                         {
                             <MudTooltip Text="@($"{game} {TimeZoneInfo.Local.StandardName}")" Placement="Placement.Bottom">
+                                <span hidden>@game.YouTubeLink</span>
                                 <MudLink OnClick="(args) => OpenYouTubeLink(game.YouTubeLink)">
                                     <div class="game-card">
                                         <div class="team-logos" style="@(string.IsNullOrEmpty(game.YouTubeLink) ? "opacity: 0.5;" : string.Empty)">
