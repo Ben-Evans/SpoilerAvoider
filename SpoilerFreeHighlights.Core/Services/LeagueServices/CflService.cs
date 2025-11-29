@@ -124,7 +124,10 @@ public class CflService(HttpClient _httpClient, AppDbContext _dbContext, IConfig
 
     private async Task<Schedule> ConvertFromCflCalendarToUsableModels(Calendar calendar)
     {
-        Schedule schedule = new();
+        Schedule schedule = new()
+        {
+            League = Leagues.Cfl
+        };
         foreach (IGrouping<DateOnly, CalendarEvent> dateEvents in calendar.Events.GroupBy(x => x.Start.Date).OrderBy(x => x.Key))
         {
             GameDay gameDay = new()

@@ -45,7 +45,7 @@ public class GameDay
 {
     public DateOnly DateLeague { get; set; }
     public string DayAbbreviation => DateLeague.ToString("ddd").ToUpper();
-    public List<Game> Games { get; set; } = new();
+    public List<Game> Games { get; set; } = [];
 
     public override string ToString() => $"{DateLeague:yyyy-MM-dd} with {Games.Count} games";
 }
@@ -53,7 +53,7 @@ public class GameDay
 public class Schedule
 {
     public Leagues League { get; set; } = Leagues.All;
-    public List<GameDay> GameDays { get; set; } = new();
+    public List<GameDay> GameDays { get; set; } = [];
 
     public override string ToString()
     {

@@ -127,7 +127,7 @@ public static class AllEndpoints
                 dbContext.RemoveRange(titleDateFormatResults.RemovedItems);
 
                 foreach (var (existingTitleDateFormatResult, updatedTitleDateFormatResult) in titleDateFormatResults.SameItems)
-                    existingTitleDateFormatResult.Value = existingTitleDateFormatResult.Value;
+                    existingTitleDateFormatResult.Value = updatedTitleDateFormatResult.Value;
             }
         }
 

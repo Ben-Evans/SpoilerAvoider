@@ -1,3 +1,5 @@
+use [spoiler-avoider];
+
 select * from Leagues
 
 select l.Name AS 'League', t.Id, t.City, t.Name, t.Abbreviation, t.LogoLink
@@ -23,8 +25,11 @@ from YouTubeVideos ytv
 	join Leagues l ON l.Id = ytp.LeagueId
 order by ytp.LeagueId
 
-select l.Name AS 'League', lc.SelectPlaylistType, pc.PlaylistId, pc.PlaylistName, pc.ChannelId, pc.ChannelName, pc.TitlePattern, pc.Comment
+select l.Name AS 'League', lc.SelectPlaylistType, pc.PlaylistId, pc.PlaylistName, pc.ChannelId, pc.ChannelName, pc.TitlePattern, pc.Comment, vti.Value AS 'VideoTitleIdentifier', vttf.Value AS 'VideoTitleTeamFormats', vtdf.Value AS 'VideoTitleDateFormats'
 from LeagueConfigurations lc
 	join Leagues l ON l.Id = lc.LeagueId
 	join PlaylistConfigurations pc ON pc.LeagueConfigurationId = lc.LeagueId
+	join VideoTitleIdentifiers vti ON vti.PlaylistConfigurationId = pc.Id
+	join VideoTitleTeamFormats vttf ON vttf.PlaylistConfigurationId = pc.Id
+	join VideoTitleDateFormats vtdf ON vtdf.PlaylistConfigurationId = pc.Id
 order by lc.LeagueId

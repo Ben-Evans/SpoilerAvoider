@@ -7,6 +7,7 @@ public partial class ScheduleMatchups // : IDisposable
     [Inject] public required HttpClient HttpClient { get; set; }
     [Inject] public required NavigationManager NavigationManager { get; set; }
     [Inject] public required IDialogService DialogService { get; set; }
+    [Inject] public required ISnackbar Snackbar { get; set; }
     [Inject] private IServiceProvider Services { get; set; } = default!;
     [Inject] private ILogger<ScheduleMatchups> Logger { get; set; } = default!;
 
@@ -104,6 +105,8 @@ public partial class ScheduleMatchups // : IDisposable
         }
         catch (Exception ex)
         {
+            Snackbar.Add($"Failed to fetch data from server.", Severity.Error);
+
             Logger.LogError($"Error fetching schedule: {ex.Message}");
         }
     }

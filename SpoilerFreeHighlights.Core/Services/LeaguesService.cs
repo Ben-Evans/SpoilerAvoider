@@ -4,7 +4,8 @@ public class LeaguesService(
     NhlService _nhlService,
     MlbService _mlbService,
     CflService _cflService,
-    AppDbContext _dbContext)
+    AppDbContext _dbContext,
+    IConfiguration _configuration)
 {
     private static readonly ILogger _logger = Log.ForContext<LeaguesService>();
 
@@ -22,7 +23,7 @@ public class LeaguesService(
             { Leagues.Cfl, _cflService }
         };
 
-        List<Schedule> schedules = new();
+        List<Schedule> schedules = [];
         foreach (Leagues league in services.Keys)
         {
             LeagueService leagueService = services[league];
@@ -34,7 +35,12 @@ public class LeaguesService(
                 continue;
             }
 
-            _logger.Debug("Fetched schedule data for {ScheduleSummary}.", leagueSchedule);
+            DateOnly fetchDaysBack = league.LeagueDateToday.AddDays(-_configuration.GetValue<int>("FetchDaysBack"));
+            leagueSchedule.GameDays = leagueSchedule.GameDays
+                .Where(x => x.DateLeague >= fetchDaysBack)
+                .ToList();
+
+            _logger.Debug("Fetched schedule data for {ScheduleSummary}.", leagueSchedule.ToString());
             schedules.Add(leagueSchedule);
         }
 
@@ -94,7 +100,7 @@ public abstract class LeagueService(AppDbContext _dbContext, IConfiguration _con
                 && x.StartDateLeagueTime <= daysForwardPlusOne && x.StartDateLeagueTime > daysBack);
 
         if (preferredTeamIds.Any())
-            gamesQuery.Where(x => preferredTeamIds.Contains(x.HomeTeamId) || preferredTeamIds.Contains(x.AwayTeamId));
+            gamesQuery = gamesQuery.Where(x => preferredTeamIds.Contains(x.HomeTeamId) || preferredTeamIds.Contains(x.AwayTeamId));
 
         Game[] games = await gamesQuery.ToArrayAsync();
 
